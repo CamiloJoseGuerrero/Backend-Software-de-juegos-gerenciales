@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: estratego-backend
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/estratego_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+jwt:
+  secret: dev-secret-key-for-testing-only-do-not-use-in-production
+  expiration: 86400000
+
+logging:
+  level:
+    root: INFO
+    com.estratego: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+server:
+  port: 8080
