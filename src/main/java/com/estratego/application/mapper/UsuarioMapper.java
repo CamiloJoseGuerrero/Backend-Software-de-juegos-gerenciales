@@ -9,10 +9,8 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UsuarioMapper {
 
-    @Mapping(target = "contrasena", ignore = true)
     UsuarioResponse toResponse(Usuario usuario);
 
-    @Mapping(target = "contrasena", ignore = true)
     UsuarioResponse toResponse(UsuarioEntity entity);
 
     Usuario toDomain(UsuarioEntity entity);
