@@ -14,4 +14,6 @@ public interface UsuarioRepository {
 
     boolean existsByCorreo(String correo);
 
+    boolean existsByNumeroIdentificacion(String numeroIdentificacion);
+
 }

@@ -13,7 +13,7 @@ public class Usuario {
     private String nombre;
     private String correo;
     private String numeroIdentificacion;
-    private String contrasena;  // Hash BCrypt almacenado en BD
+    private String contrasena;
     private Rol rol;
 
 }

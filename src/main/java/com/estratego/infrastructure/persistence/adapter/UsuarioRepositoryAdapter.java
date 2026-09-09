@@ -41,4 +41,9 @@ public class UsuarioRepositoryAdapter implements UsuarioRepository {
         return jpaRepository.existsByCorreo(correo);
     }
 
+    @Override
+    public boolean existsByNumeroIdentificacion(String numeroIdentificacion) {
+        return jpaRepository.existsByNumeroIdentificacion(numeroIdentificacion);
+    }
+
 }

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -25,15 +26,15 @@ public class AuthController {
     }
 
     @PostMapping("/registro-docente")
-    public ResponseEntity<LoginResponse> registroDocente(@RequestBody RegistroDocenteRequest request) {
-        // TODO: Implementar lógica de registro de docente
-        return ResponseEntity.status(HttpStatus.CONFLICT).build();
+    public ResponseEntity<LoginResponse> registroDocente(@Valid @RequestBody RegistroDocenteRequest request) {
+        LoginResponse response = authService.registroDocente(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/sesion")
-    public ResponseEntity<SesionResponse> obtenerSesion() {
-        // TODO: Implementar lógica para obtener la sesión actual
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    public ResponseEntity<SesionResponse> obtenerSesion(Authentication authentication) {
+        SesionResponse response = authService.obtenerSesion(authentication.getName());
+        return ResponseEntity.ok(response);
     }
 
 }
