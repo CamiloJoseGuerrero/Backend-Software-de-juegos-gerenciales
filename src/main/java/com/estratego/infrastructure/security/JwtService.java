@@ -51,11 +51,11 @@ public class JwtService {
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
 
         return Jwts.builder()
-            .claims(claims)
-            .subject(subject)
-            .issuedAt(now)
-            .expiration(expiryDate)
-            .signWith(key)
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
                 .compact();
     }
 
@@ -75,10 +75,10 @@ public class JwtService {
     private Claims extractAllClaims(String token) {
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
         return Jwts.parser()
-            .verifyWith(key)
+                .verifyWith(key)
                 .build()
-            .parseSignedClaims(token)
-            .getPayload();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private Boolean isTokenExpired(String token) {
@@ -87,7 +87,7 @@ public class JwtService {
 
     public Boolean validateToken(String token) {
         try {
-                SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
             Jwts.parser()
                     .verifyWith(key)
                     .build()
