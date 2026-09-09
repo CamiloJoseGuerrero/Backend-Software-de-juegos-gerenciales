@@ -1,7 +1,7 @@
 # Estratego Backend - Sistema de Juegos Gerenciales
 
 ## Descripción
-Backend del sistema de juegos gerenciales "Estratego", desarrollado con Spring Boot 3.2, Java 21, MySQL y una arquitectura Clean/Hexagonal con DDD ligero.
+Backend del sistema de juegos gerenciales "Estratego", desarrollado con Spring Boot 3.2, Java 21, SQL Server y una arquitectura Clean/Hexagonal con DDD ligero.
 
 ## Estado Actual
 La autenticación está implementada y lista para integración con el frontend:
@@ -14,7 +14,7 @@ La autenticación está implementada y lista para integración con el frontend:
 ✅ Manejo global de errores y respuestas HTTP consistentes  
 ✅ CORS y secretos configurables mediante variables de entorno  
 ✅ Pruebas unitarias del servicio de autenticación  
-✅ Persistencia MySQL con Spring Data JPA  
+✅ Persistencia SQL Server con Spring Data JPA  
 
 Pendiente para las siguientes etapas:
 
@@ -121,7 +121,7 @@ src/main/resources
 ### Variables de Entorno Requeridas
 ```bash
 DB_HOST=IP_O_HOST_DE_LA_BASE_REMOTA
-DB_PORT=3306
+DB_PORT=1433
 DB_NAME=estratego_db
 DB_USERNAME=tu_usuario
 DB_PASSWORD=tu_contraseña
@@ -130,10 +130,10 @@ JWT_EXPIRATION=86400000  # 24 horas en milisegundos
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:4200
 ```
 
-El backend no utiliza una base de datos local ni tiene valores predeterminados para `DB_HOST`, `DB_PORT` o `DB_NAME`. Debes usar los datos del servidor MySQL remoto compartido. Si no defines `JWT_SECRET`, solo se utiliza una clave de desarrollo local; en producción debes definir siempre una clave propia y aleatoria.
+El backend no utiliza una base de datos local ni tiene valores predeterminados para `DB_HOST`, `DB_PORT` o `DB_NAME`. Debes usar los datos del servidor SQL Server remoto compartido. Si no defines `JWT_SECRET`, solo se utiliza una clave de desarrollo local; en producción debes definir siempre una clave propia y aleatoria.
 
 ### Base de Datos
-- Sistema: MySQL 8+
+- Sistema: SQL Server
 - Base de datos: `estratego_db`
 - Configuración en: `src/main/resources/application.yml`
 - `spring.jpa.hibernate.ddl-auto` está configurado como `validate`; el backend no modifica el esquema automáticamente.
@@ -144,7 +144,7 @@ El backend no utiliza una base de datos local ni tiene valores predeterminados p
 ### Requisitos
 - Java 21+
 - Maven 3.8+
-- MySQL 8+
+- SQL Server
 
 ### Compilar
 ```bash
@@ -160,10 +160,10 @@ En PowerShell, define antes las variables de conexión al servidor remoto:
 
 ```powershell
 $env:DB_HOST = "IP_O_HOST_DE_LA_BASE_REMOTA"
-$env:DB_PORT = "3306"
+$env:DB_PORT = "1433"
 $env:DB_NAME = "estratego_db"
-$env:DB_USERNAME = "tu_usuario_mysql"
-$env:DB_PASSWORD = "tu_contraseña_mysql"
+$env:DB_USERNAME = "sa"
+$env:DB_PASSWORD = "tu_contraseña_sql_server"
 $env:JWT_SECRET = "una-clave-aleatoria-de-minimo-32-caracteres"
 mvn spring-boot:run
 ```
