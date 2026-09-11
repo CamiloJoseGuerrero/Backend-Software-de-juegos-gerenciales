@@ -6,6 +6,7 @@ import com.estratego.application.dto.auth.RegistroDocenteRequest;
 import com.estratego.application.dto.auth.SesionResponse;
 import com.estratego.application.dto.auth.UsuarioResponse;
 import com.estratego.application.mapper.UsuarioMapper;
+import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
 import com.estratego.domain.repository.UsuarioRepository;
 import com.estratego.infrastructure.security.JwtService;
@@ -29,15 +30,13 @@ public class AuthService {
     private final LoginAttemptService loginAttemptService;
 
     public LoginResponse login(LoginRequest request) {
-        String correo = request.getCorreo().trim().toLowerCase(java.util.Locale.ROOT);
+        String correo = request.getCorreo().trim().toLowerCase(Locale.ROOT);
         if (loginAttemptService.isBlocked(correo)) {
             throw new CuentaBloqueadaException("Demasiados intentos fallidos. Intenta nuevamente en 15 minutos");
         }
 
-        // 1. Buscar usuario por correo
         Usuario usuario = usuarioRepository.findByCorreo(correo).orElse(null);
 
-        // 2. Validar contraseña
         if (usuario == null || !passwordEncoder.matches(request.getContrasena(), usuario.getContrasena())) {
             loginAttemptService.recordFailure(correo);
             log.warn("Intento de login fallido para correo: {}", correo);
@@ -47,33 +46,33 @@ public class AuthService {
         loginAttemptService.recordSuccess(correo);
         log.info("Login exitoso para correo: {}", correo);
 
-        // 3. Generar JWT
         String token = jwtService.generateToken(usuario.getCorreo());
-
-        // 4. Mapear usuario a respuesta (sin contraseña)
         UsuarioResponse usuarioResponse = usuarioMapper.toResponse(usuario);
 
-        // 5. Retornar respuesta
         return new LoginResponse(token, usuarioResponse);
     }
 
     public LoginResponse registroDocente(RegistroDocenteRequest request) {
+        // Normalizar TODO antes de validar y guardar
+        String nombre = request.getNombre().trim();
         String correo = request.getCorreo().trim().toLowerCase(Locale.ROOT);
+        String identificacion = request.getNumeroIdentificacion().trim();
 
         if (usuarioRepository.existsByCorreo(correo)) {
             throw new UsuarioDuplicadoException("El correo ya está registrado");
         }
-        if (usuarioRepository.existsByNumeroIdentificacion(request.getNumeroIdentificacion().trim())) {
+        if (usuarioRepository.existsByNumeroIdentificacion(identificacion)) {
             throw new UsuarioDuplicadoException("El número de identificación ya está registrado");
         }
 
         Usuario usuario = new Usuario(
                 null,
-                request.getNombre().trim(),
-                correo,
-                request.getNumeroIdentificacion().trim(),
+                nombre,                                              // ✅ normalizado
+                correo,                                              // ✅ normalizado
+                identificacion,                                      // ✅ normalizado
                 passwordEncoder.encode(request.getContrasena()),
-                com.estratego.domain.model.usuario.Rol.DOCENTE
+                Rol.DOCENTE,
+                null
         );
 
         Usuario usuarioGuardado = usuarioRepository.save(usuario);
@@ -86,5 +85,4 @@ public class AuthService {
                 .orElseThrow(() -> new InvalidCredentialsException("La sesión no es válida"));
         return new SesionResponse(usuarioMapper.toResponse(usuario));
     }
-
 }

@@ -33,4 +33,7 @@ public class UsuarioEntity {
     @Column(nullable = false)
     private Rol rol;
 
+    @Column(name = "docente_id")
+    private Long docenteId;
+
 }

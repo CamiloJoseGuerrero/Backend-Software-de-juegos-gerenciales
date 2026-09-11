@@ -46,6 +46,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/registro-docente").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/sesion").authenticated()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/docente/**").hasRole("DOCENTE")     // ← AGREGAR
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(daoAuthenticationProvider())

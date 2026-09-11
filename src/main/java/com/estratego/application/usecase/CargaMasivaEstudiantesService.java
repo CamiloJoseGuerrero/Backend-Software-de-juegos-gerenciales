@@ -13,6 +13,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,19 +31,29 @@ import java.util.Set;
 public class CargaMasivaEstudiantesService {
 
     private static final int EXPECTED_COLUMNS = 3;
+    private static final String PREFIJO_PASSWORD = "Usu-001-";
+    private static final String SUFIJO_PASSWORD = "!";
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.estratego.application.mapper.UsuarioMapper usuarioMapper;
 
-    public CargaMasivaResponse procesar(MultipartFile file) {
+    public CargaMasivaResponse procesar(MultipartFile file, String correoDocente) {
         validateFile(file);
+
+        // Resolver el id del docente desde el correo del JWT
+        Usuario docente = usuarioRepository.findByCorreo(correoDocente)
+                .orElseThrow(() -> new InvalidCredentialsException("Docente no encontrado"));
+        Long docenteId = docente.getId();
+
         List<UsuarioResponse> creados = new ArrayList<>();
         List<ErrorCargaResponse> errores = new ArrayList<>();
         Set<String> correosDelArchivo = new HashSet<>();
         Set<String> identificacionesDelArchivo = new HashSet<>();
 
-        try (InputStream inputStream = file.getInputStream(); Workbook workbook = new XSSFWorkbook(inputStream)) {
+        try (InputStream inputStream = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(inputStream)) {
+
             Sheet sheet = workbook.getSheetAt(0);
             DataFormatter formatter = new DataFormatter();
             boolean headerSkipped = false;
@@ -60,6 +71,7 @@ public class CargaMasivaEstudiantesService {
                 String nombre = readCell(row, 0, formatter);
                 String correo = readCell(row, 1, formatter).toLowerCase(Locale.ROOT);
                 String identificacion = readCell(row, 2, formatter);
+
                 String error = validateRow(row, nombre, correo, identificacion, fila,
                         correosDelArchivo, identificacionesDelArchivo);
 
@@ -68,19 +80,31 @@ public class CargaMasivaEstudiantesService {
                     continue;
                 }
 
-                Usuario usuario = new Usuario(
-                        null,
-                        nombre,
-                        correo,
-                        identificacion,
-                        passwordEncoder.encode("USU-001-" + identificacion),
-                        Rol.ESTUDIANTE
-                );
-                Usuario guardado = usuarioRepository.save(usuario);
-                creados.add(usuarioMapper.toResponse(guardado));
+                try {
+                    Usuario usuario = new Usuario(
+                            null,
+                            nombre,
+                            correo,
+                            identificacion,
+                            passwordEncoder.encode(PREFIJO_PASSWORD + identificacion + SUFIJO_PASSWORD),
+                            Rol.ESTUDIANTE,
+                            docenteId
+                    );
+                    Usuario guardado = usuarioRepository.save(usuario);
+                    creados.add(usuarioMapper.toResponse(guardado));
+                } catch (DataIntegrityViolationException ex) {
+                    errores.add(new ErrorCargaResponse(fila, correo, identificacion,
+                            "El correo o la identificación ya existen en la base de datos"));
+                    correosDelArchivo.remove(correo);
+                    identificacionesDelArchivo.remove(identificacion);
+                }
             }
         } catch (IOException ex) {
             throw new IllegalArgumentException("No se pudo leer el archivo Excel", ex);
+        }
+
+        if (creados.isEmpty() && errores.isEmpty()) {
+            throw new IllegalArgumentException("El archivo no contiene filas de datos");
         }
 
         return new CargaMasivaResponse(creados, errores);

@@ -1,5 +1,8 @@
 package com.estratego.presentation.controller;
 
+import com.estratego.application.dto.auth.CambiarContrasenaRequest;
+import com.estratego.application.usecase.CambiarContrasenaService;
+import com.estratego.application.dto.auth.CambiarContrasenaResponse;
 import com.estratego.application.dto.auth.LoginRequest;
 import com.estratego.application.dto.auth.LoginResponse;
 import com.estratego.application.dto.auth.RegistroDocenteRequest;
@@ -18,6 +21,7 @@ import org.springframework.security.core.Authentication;
 public class AuthController {
 
     private final AuthService authService;
+    private final CambiarContrasenaService CambiarContrasenaService;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -35,6 +39,15 @@ public class AuthController {
     public ResponseEntity<SesionResponse> obtenerSesion(Authentication authentication) {
         SesionResponse response = authService.obtenerSesion(authentication.getName());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/cambiar-contrasena")
+    public ResponseEntity<CambiarContrasenaResponse> cambiarContrasena(
+            @Valid @RequestBody CambiarContrasenaRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+        CambiarContrasenaService.cambiar(authentication.getName(), request)
+        );
     }
 
 }

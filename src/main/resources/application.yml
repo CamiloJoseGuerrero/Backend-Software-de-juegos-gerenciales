@@ -1,21 +1,21 @@
 spring:
   application:
     name: estratego-backend
-  
+
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: false
+      ddl-auto: ${DDL_AUTO:update}
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.SQLServerDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-  
+
   datasource:
-    url: jdbc:sqlserver://${DB_HOST}:${DB_PORT};databaseName=${DB_NAME};encrypt=true;trustServerCertificate=true
+    url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    driver-class-name: org.postgresql.Driver
 
   sql:
     init:
@@ -32,7 +32,7 @@ springdoc:
     path: /api-docs
 
 jwt:
-  secret: ${JWT_SECRET:local-development-secret-with-at-least-32-bytes}
+  secret: ${JWT_SECRET:clave-de-desarrollo-local-estratego-con-mas-de-32-bytes-2026-segura}
   expiration: ${JWT_EXPIRATION:86400000}
 
 cors:

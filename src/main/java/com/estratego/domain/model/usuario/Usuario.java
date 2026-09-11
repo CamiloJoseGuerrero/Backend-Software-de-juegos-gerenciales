@@ -15,5 +15,6 @@ public class Usuario {
     private String numeroIdentificacion;
     private String contrasena;
     private Rol rol;
+    private Long docenteId;
 
 }

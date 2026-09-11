@@ -52,7 +52,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        usuario = new Usuario(1L, "Ana", "ana@correo.com", "123", "hashed", Rol.DOCENTE);
+        usuario = new Usuario(1L, "Ana", "ana@correo.com", "123", "hashed", Rol.DOCENTE, null);
     }
 
     @Test
@@ -84,7 +84,7 @@ class AuthServiceTest {
 
     @Test
     void loginEstudianteRetornaRolEstudiante() {
-        Usuario estudiante = new Usuario(2L, "Carlos", "carlos@correo.com", "456", "hashed", Rol.ESTUDIANTE);
+        Usuario estudiante = new Usuario(2L, "Carlos", "carlos@correo.com", "456", "hashed", Rol.ESTUDIANTE, 1L);
         LoginRequest request = new LoginRequest("carlos@correo.com", "Password1!");
         UsuarioResponse usuarioResponse = new UsuarioResponse(2L, "Carlos", "carlos@correo.com", "456", "ESTUDIANTE");
 
@@ -103,7 +103,7 @@ class AuthServiceTest {
         RegistroDocenteRequest request = new RegistroDocenteRequest(
                 " Ana ", "ANA@CORREO.COM ", " 123 ", "Password1!"
         );
-        Usuario guardado = new Usuario(1L, "Ana", "ana@correo.com", "123", "hashed", Rol.DOCENTE);
+        Usuario guardado = new Usuario(1L, "Ana", "ana@correo.com", "123", "hashed", Rol.DOCENTE, null);
         UsuarioResponse usuarioResponse = new UsuarioResponse(1L, "Ana", "ana@correo.com", "123", "DOCENTE");
 
         when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(false);
@@ -118,27 +118,27 @@ class AuthServiceTest {
         assertEquals("token", response.getToken());
         verify(passwordEncoder).encode("Password1!");
         verify(usuarioRepository).save(argThat(saved ->
-            saved.getRol() == Rol.DOCENTE
-                && saved.getCorreo().equals("ana@correo.com")
-                && saved.getNumeroIdentificacion().equals("123")
+                saved.getRol() == Rol.DOCENTE
+                        && saved.getCorreo().equals("ana@correo.com")
+                        && saved.getNumeroIdentificacion().equals("123")
         ));
-        }
+    }
 
-        @Test
-        void registroDocenteRechazaCorreoDuplicado() {
+    @Test
+    void registroDocenteRechazaCorreoDuplicado() {
         RegistroDocenteRequest request = new RegistroDocenteRequest(
-            "Ana", "ana@correo.com", "123", "Password1!"
+                "Ana", "ana@correo.com", "123", "Password1!"
         );
         when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(true);
 
         assertThrows(UsuarioDuplicadoException.class, () -> authService.registroDocente(request));
         verify(usuarioRepository).existsByCorreo("ana@correo.com");
-        }
+    }
 
-        @Test
-        void registroDocenteRechazaIdentificacionDuplicada() {
+    @Test
+    void registroDocenteRechazaIdentificacionDuplicada() {
         RegistroDocenteRequest request = new RegistroDocenteRequest(
-            "Ana", "ana@correo.com", "123", "Password1!"
+                "Ana", "ana@correo.com", "123", "Password1!"
         );
         when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(false);
         when(usuarioRepository.existsByNumeroIdentificacion("123")).thenReturn(true);
