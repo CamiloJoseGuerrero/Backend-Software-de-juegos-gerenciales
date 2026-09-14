@@ -8,7 +8,6 @@
     <artifactId>estratego-backend</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-
     <name>Estratego Backend</name>
     <description>Backend del sistema de juegos gerenciales Estratego</description>
 
@@ -19,11 +18,14 @@
         <relativePath/>
     </parent>
 
-    <properties>
+        <properties>
         <java.version>21</java.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <jjwt.version>0.12.3</jjwt.version>
+        <lombok.version>1.18.30</lombok.version>
     </properties>
+
+    
 
     <dependencies>
         <!-- Spring Boot Starters -->
@@ -42,12 +44,19 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+                <!-- Dotenv: carga variables desde archivo .env -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- SQL Server Driver -->
+        <!-- PostgreSQL Driver -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -66,6 +75,13 @@
             <artifactId>jjwt-impl</artifactId>
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Dotenv: carga variables desde archivo .env -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
         </dependency>
 
         <dependency>
