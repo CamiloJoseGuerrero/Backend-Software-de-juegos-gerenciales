@@ -58,4 +58,11 @@ public class EquipoRepositoryAdapter implements EquipoRepository {
                 equipo.getEstudianteIds()
         );
     }
+
+    @Override
+    public List<Equipo> findByIdIn(List<Long> ids) {
+        return jpaRepository.findByIdIn(ids).stream()
+                .map(this::toDomain)
+                .toList();
+    }
 }

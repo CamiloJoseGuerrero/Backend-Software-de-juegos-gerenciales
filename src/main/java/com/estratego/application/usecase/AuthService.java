@@ -67,9 +67,9 @@ public class AuthService {
 
         Usuario usuario = new Usuario(
                 null,
-                nombre,                                              // ✅ normalizado
-                correo,                                              // ✅ normalizado
-                identificacion,                                      // ✅ normalizado
+                nombre,                                              
+                correo,                                              
+                identificacion,                                      
                 passwordEncoder.encode(request.getContrasena()),
                 Rol.DOCENTE,
                 null

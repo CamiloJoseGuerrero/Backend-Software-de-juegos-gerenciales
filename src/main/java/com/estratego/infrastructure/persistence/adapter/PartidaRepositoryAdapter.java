@@ -6,6 +6,7 @@ import com.estratego.infrastructure.persistence.entity.PartidaEntity;
 import com.estratego.infrastructure.persistence.repository.PartidaJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import com.estratego.domain.model.partida.EstadoPartida;
 
 import java.util.List;
 import java.util.Optional;
@@ -70,4 +71,11 @@ public class PartidaRepositoryAdapter implements PartidaRepository {
                 p.getEquipoIds()
         );
     }
+
+    @Override
+    public boolean existeEquipoEnPartidaEnCurso(Long equipoId, Long excluirPartidaId) {
+        return !jpaRepository.findPartidasConEquipoEnEstado(
+                equipoId, EstadoPartida.EN_CURSO, excluirPartidaId).isEmpty();
+    }
+
 }

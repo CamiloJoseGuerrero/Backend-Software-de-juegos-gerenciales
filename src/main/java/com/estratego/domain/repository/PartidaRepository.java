@@ -1,5 +1,6 @@
 package com.estratego.domain.repository;
 
+import com.estratego.domain.model.partida.EstadoPartida;
 import com.estratego.domain.model.partida.Partida;
 
 import java.util.List;
@@ -16,4 +17,6 @@ public interface PartidaRepository {
     void deleteById(Long id);
 
     boolean existsByCasoId(Long casoId);
+
+    boolean existeEquipoEnPartidaEnCurso(Long equipoId, Long excluirPartidaId);
 }

@@ -10,6 +10,13 @@ import com.estratego.domain.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.estratego.application.dto.docente.AsignarEquiposRequest;
+import com.estratego.application.dto.docente.EquipoResponse;
+import com.estratego.application.dto.docente.PartidaEquiposResponse;
+import com.estratego.domain.model.equipo.Equipo;
+import com.estratego.domain.repository.EquipoRepository;
+import java.util.HashSet;
+import java.util.Set;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -21,6 +28,7 @@ public class PartidaService {
 
     private final PartidaRepository partidaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final EquipoRepository equipoRepository;
 
     @Transactional
     public PartidaResponse crear(CrearPartidaRequest request, String correoDocente) {
@@ -158,4 +166,81 @@ public class PartidaService {
                 p.getEquipoIds()
         );
     }
+
+    @Transactional
+public PartidaEquiposResponse asignarEquipos(Long partidaId, AsignarEquiposRequest request, String correoDocente) {
+    Partida partida = obtenerYValidar(partidaId, correoDocente);
+
+    if (partida.getEstado() != EstadoPartida.CONFIGURADA
+            && partida.getEstado() != EstadoPartida.PROGRAMADA) {
+        throw new IllegalArgumentException(
+                "Solo se pueden asignar equipos en estado CONFIGURADA o PROGRAMADA");
+    }
+
+    // Validar que los equipos existan y pertenezcan al docente
+    List<Equipo> equipos = equipoRepository.findByIdIn(request.getEquipoIds());
+    if (equipos.size() != request.getEquipoIds().size()) {
+        throw new IllegalArgumentException("Uno o más equipos no existen");
+    }
+    for (Equipo equipo : equipos) {
+        if (!partida.getDocenteId().equals(equipo.getDocenteId())) {
+            throw new IllegalArgumentException(
+                    "El equipo " + equipo.getId() + " no pertenece a este docente");
+        }
+    }
+
+    // Validar que ningún equipo esté en otra partida EN_CURSO
+    for (Long equipoId : request.getEquipoIds()) {
+        if (partidaRepository.existeEquipoEnPartidaEnCurso(equipoId, partidaId)) {
+            throw new IllegalArgumentException(
+                    "El equipo " + equipoId + " ya está en otra partida en curso");
+        }
+    }
+
+    // Asignar sin duplicar
+    Set<Long> actuales = new HashSet<>(partida.getEquipoIds());
+    for (Long equipoId : request.getEquipoIds()) {
+        actuales.add(equipoId);
+    }
+    partida.setEquipoIds(new ArrayList<>(actuales));
+
+    partidaRepository.save(partida);
+
+    return toEquiposResponse(partida, equipos);
+}
+
+@Transactional
+public PartidaEquiposResponse quitarEquipo(Long partidaId, Long equipoId, String correoDocente) {
+    Partida partida = obtenerYValidar(partidaId, correoDocente);
+
+    if (!partida.getEquipoIds().contains(equipoId)) {
+        throw new IllegalArgumentException("El equipo no está asignado a esta partida");
+    }
+
+    partida.getEquipoIds().remove(equipoId);
+    partidaRepository.save(partida);
+
+    List<Equipo> equipos = equipoRepository.findByIdIn(partida.getEquipoIds());
+    return toEquiposResponse(partida, equipos);
+}
+
+public PartidaEquiposResponse listarEquipos(Long partidaId, String correoDocente) {
+    Partida partida = obtenerYValidar(partidaId, correoDocente);
+    List<Equipo> equipos = equipoRepository.findByIdIn(partida.getEquipoIds());
+    return toEquiposResponse(partida, equipos);
+}
+
+private PartidaEquiposResponse toEquiposResponse(Partida partida, List<Equipo> equipos) {
+    List<EquipoResponse> responses = equipos.stream()
+            .map(e -> new EquipoResponse(
+                    e.getId(),
+                    e.getNombre(),
+                    e.getDocenteId(),
+                    e.getLiderId(),
+                    e.getEstudianteIds()))
+            .toList();
+
+    return new PartidaEquiposResponse(partida.getId(), responses);
+}
+
 }

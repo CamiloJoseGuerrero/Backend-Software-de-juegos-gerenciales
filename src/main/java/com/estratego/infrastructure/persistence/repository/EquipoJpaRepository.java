@@ -12,4 +12,6 @@ public interface EquipoJpaRepository extends JpaRepository<EquipoEntity, Long> {
     List<EquipoEntity> findByDocenteId(Long docenteId);
 
     long countByDocenteId(Long docenteId);
+
+    List<EquipoEntity> findByIdIn(List<Long> ids);
 }

@@ -11,6 +11,8 @@ public interface EquipoRepository {
 
     List<Equipo> findByDocenteId(Long docenteId);
 
+    List<Equipo> findByIdIn(List<Long> ids);
+
     Equipo save(Equipo equipo);
 
     long countByDocenteId(Long docenteId);

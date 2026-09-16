@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.estratego.application.dto.docente.AsignarEquiposRequest;
+import com.estratego.application.dto.docente.PartidaEquiposResponse;
 
 import java.util.List;
 
@@ -77,5 +79,31 @@ public class PartidaController {
             Authentication authentication) {
         partidaService.eliminar(id, authentication.getName());
         return ResponseEntity.noContent().build();
+    }
+
+        @PostMapping("/{id}/equipos")
+    public ResponseEntity<PartidaEquiposResponse> asignarEquipos(
+            @PathVariable Long id,
+            @Valid @RequestBody AsignarEquiposRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                partidaService.asignarEquipos(id, request, authentication.getName()));
+    }
+
+    @DeleteMapping("/{id}/equipos/{equipoId}")
+    public ResponseEntity<PartidaEquiposResponse> quitarEquipo(
+            @PathVariable Long id,
+            @PathVariable Long equipoId,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                partidaService.quitarEquipo(id, equipoId, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/equipos")
+    public ResponseEntity<PartidaEquiposResponse> listarEquipos(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                partidaService.listarEquipos(id, authentication.getName()));
     }
 }

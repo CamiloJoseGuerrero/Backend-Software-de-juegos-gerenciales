@@ -13,6 +13,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.estratego.domain.repository.EquipoRepository;
+import com.estratego.application.dto.docente.AsignarEquiposRequest;
+import com.estratego.domain.model.equipo.Equipo;
+import java.util.List;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,6 +37,9 @@ class PartidaServiceTest {
 
     @Mock
     private UsuarioRepository usuarioRepository;
+
+    @Mock
+    private EquipoRepository equipoRepository;
 
     @InjectMocks
     private PartidaService partidaService;
@@ -131,4 +138,87 @@ class PartidaServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> partidaService.finalizar(1L, CORREO_DOCENTE));
     }
+
+
+
+@Test
+void asignarEquiposExitoso() {
+    Partida partida = new Partida(1L, 1L, DOCENTE_ID,
+            LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1),
+            60, null, EstadoPartida.CONFIGURADA, new ArrayList<>());
+
+    Equipo equipo1 = new Equipo(1L, "Equipo 1", DOCENTE_ID, 1L, List.of(1L, 2L));
+
+    when(partidaRepository.findById(1L)).thenReturn(Optional.of(partida));
+    when(equipoRepository.findByIdIn(List.of(1L))).thenReturn(List.of(equipo1));
+    when(partidaRepository.save(any(Partida.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    var response = partidaService.asignarEquipos(1L,
+            new AsignarEquiposRequest(List.of(1L)), CORREO_DOCENTE);
+
+    assertEquals(1, response.getEquipos().size());
+    assertEquals(1L, response.getPartidaId());
+}
+
+@Test
+void asignarEquiposRechazaPartidaEnCurso() {
+    Partida partida = new Partida(1L, 1L, DOCENTE_ID,
+            LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(1),
+            60, null, EstadoPartida.EN_CURSO, new ArrayList<>());
+
+    when(partidaRepository.findById(1L)).thenReturn(Optional.of(partida));
+
+    assertThrows(IllegalArgumentException.class,
+            () -> partidaService.asignarEquipos(1L,
+                    new AsignarEquiposRequest(List.of(1L)), CORREO_DOCENTE));
+}
+
+@Test
+void asignarEquiposRechazaEquipoDeOtroDocente() {
+    Partida partida = new Partida(1L, 1L, DOCENTE_ID,
+            LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1),
+            60, null, EstadoPartida.CONFIGURADA, new ArrayList<>());
+
+    Equipo equipoAjeno = new Equipo(1L, "Equipo 1", 999L, 1L, List.of(1L));
+
+    when(partidaRepository.findById(1L)).thenReturn(Optional.of(partida));
+    when(equipoRepository.findByIdIn(List.of(1L))).thenReturn(List.of(equipoAjeno));
+
+    assertThrows(IllegalArgumentException.class,
+            () -> partidaService.asignarEquipos(1L,
+                    new AsignarEquiposRequest(List.of(1L)), CORREO_DOCENTE));
+}
+
+@Test
+void asignarEquiposRechazaEquipoEnOtraPartidaEnCurso() {
+    Partida partida = new Partida(1L, 1L, DOCENTE_ID,
+            LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1),
+            60, null, EstadoPartida.CONFIGURADA, new ArrayList<>());
+
+    Equipo equipo = new Equipo(1L, "Equipo 1", DOCENTE_ID, 1L, List.of(1L));
+
+    when(partidaRepository.findById(1L)).thenReturn(Optional.of(partida));
+    when(equipoRepository.findByIdIn(List.of(1L))).thenReturn(List.of(equipo));
+    when(partidaRepository.existeEquipoEnPartidaEnCurso(1L, 1L)).thenReturn(true);
+
+    assertThrows(IllegalArgumentException.class,
+            () -> partidaService.asignarEquipos(1L,
+                    new AsignarEquiposRequest(List.of(1L)), CORREO_DOCENTE));
+}
+
+@Test
+void quitarEquipoExitoso() {
+    Partida partida = new Partida(1L, 1L, DOCENTE_ID,
+            LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1),
+            60, null, EstadoPartida.CONFIGURADA, new ArrayList<>(List.of(1L)));
+
+    when(partidaRepository.findById(1L)).thenReturn(Optional.of(partida));
+    when(equipoRepository.findByIdIn(any())).thenReturn(List.of());
+    when(partidaRepository.save(any(Partida.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    var response = partidaService.quitarEquipo(1L, 1L, CORREO_DOCENTE);
+
+    assertTrue(response.getEquipos().isEmpty());
+}
+
 }
