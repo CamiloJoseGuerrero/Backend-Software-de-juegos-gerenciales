@@ -12,17 +12,19 @@ public interface UsuarioRepository {
 
     Optional<Usuario> findByCorreo(String correo);
 
+    Optional<Usuario> findByUsuario(String usuario);
+
     List<Usuario> findAll();
 
     List<Usuario> findByRol(Rol rol);
-
-    List<Usuario> findByRolAndDocenteId(Rol rol, Long docenteId);
 
     Usuario save(Usuario usuario);
 
     void deleteById(Long id);
 
     boolean existsByCorreo(String correo);
+
+    boolean existsByUsuario(String usuario);
 
     boolean existsByNumeroIdentificacion(String numeroIdentificacion);
 }

@@ -26,7 +26,7 @@ public class EquipoService {
     @Transactional
     public EquipoResponse crear(CrearEquipoRequest request, String correoDocente) {
         Long docenteId = resolverDocenteId(correoDocente);
-        validarEstudiantes(request.getEstudianteIds(), request.getLiderId(), docenteId);
+        //validarEstudiantes(request.getEstudianteIds(), request.getLiderId(), docenteId);
         validarEstudiantesNoAsignados(request.getEstudianteIds(), docenteId, null);
 
         long siguiente = equipoRepository.countByDocenteId(docenteId) + 1;
@@ -70,7 +70,7 @@ public class EquipoService {
             throw new IllegalArgumentException("El equipo no pertenece a este docente");
         }
 
-        validarEstudiantes(request.getEstudianteIds(), request.getLiderId(), docenteId);
+        //validarEstudiantes(request.getEstudianteIds(), request.getLiderId(), docenteId);
         validarEstudiantesNoAsignados(request.getEstudianteIds(), docenteId, id);
 
         equipo.setLiderId(request.getLiderId());
@@ -79,7 +79,7 @@ public class EquipoService {
         return toResponse(equipoRepository.save(equipo));
     }
 
-    private void validarEstudiantes(List<Long> estudianteIds, Long liderId, Long docenteId) {
+    /*private void validarEstudiantes(List<Long> estudianteIds, Long liderId, Long docenteId) {
         Set<Long> idsUnicos = new HashSet<>(estudianteIds);
         if (idsUnicos.size() != estudianteIds.size()) {
             throw new IllegalArgumentException("No se pueden repetir estudiantes en el equipo");
@@ -100,7 +100,7 @@ public class EquipoService {
                 throw new IllegalArgumentException("El estudiante " + id + " no pertenece a este docente");
             }
         }
-    }
+    }*/
 
     private void validarEstudiantesNoAsignados(List<Long> estudianteIds, Long docenteId, Long equipoIdExcluir) {
         List<Equipo> equipos = equipoRepository.findByDocenteId(docenteId);

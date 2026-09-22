@@ -17,23 +17,22 @@ public class UsuarioEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "nombre", nullable = false, length = 255)
     private String nombre;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(name = "correo", nullable = false, unique = true, length = 255)
     private String correo;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(name = "numero_identificacion", nullable = false, unique = true, length = 50)
     private String numeroIdentificacion;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "usuario", nullable = false, unique = true, length = 50)
+    private String usuario;
+
+    @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "rol", nullable = false, length = 50)
     private Rol rol;
-
-    @Column(name = "docente_id")
-    private Long docenteId;
-
 }

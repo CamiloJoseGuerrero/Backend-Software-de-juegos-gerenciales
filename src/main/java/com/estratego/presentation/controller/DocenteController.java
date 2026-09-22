@@ -3,7 +3,7 @@ package com.estratego.presentation.controller;
 import com.estratego.application.dto.auth.UsuarioResponse;
 import com.estratego.application.dto.docente.CargaMasivaResponse;
 import com.estratego.application.usecase.CargaMasivaEstudiantesService;
-import com.estratego.application.usecase.DocenteEstudianteService;
+//import com.estratego.application.usecase.DocenteEstudianteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +21,7 @@ import java.util.List;
 public class DocenteController {
 
     private final CargaMasivaEstudiantesService cargaMasivaEstudiantesService;
-    private final DocenteEstudianteService docenteEstudianteService;
+    //private final DocenteEstudianteService docenteEstudianteService;
 
     @PostMapping(value = "/carga-masiva", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CargaMasivaResponse> cargarEstudiantes(
@@ -32,7 +32,7 @@ public class DocenteController {
         );
     }
 
-    @GetMapping
+    /*@GetMapping
     public ResponseEntity<List<UsuarioResponse>> listarEstudiantes(Authentication authentication) {
         return ResponseEntity.ok(
                 docenteEstudianteService.listarEstudiantesDelDocente(authentication.getName())
@@ -46,5 +46,5 @@ public class DocenteController {
         return ResponseEntity.ok(
                 docenteEstudianteService.obtenerEstudianteDelDocente(id, authentication.getName())
         );
-    }
+    }*/
 }

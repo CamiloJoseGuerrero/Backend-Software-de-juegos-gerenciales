@@ -30,24 +30,18 @@ public class UsuarioRepositoryAdapter implements UsuarioRepository {
     }
 
     @Override
+    public Optional<Usuario> findByUsuario(String usuario) {
+        return jpaRepository.findByUsuario(usuario).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Usuario> findAll() {
-        return jpaRepository.findAll().stream()
-                .map(mapper::toDomain)
-                .toList();
+        return jpaRepository.findAll().stream().map(mapper::toDomain).toList();
     }
 
     @Override
     public List<Usuario> findByRol(Rol rol) {
-        return jpaRepository.findByRol(rol).stream()
-                .map(mapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    public List<Usuario> findByRolAndDocenteId(Rol rol, Long docenteId) {
-        return jpaRepository.findByRolAndDocenteId(rol, docenteId).stream()
-                .map(mapper::toDomain)
-                .toList();
+        return jpaRepository.findByRol(rol).stream().map(mapper::toDomain).toList();
     }
 
     @Override
@@ -65,6 +59,11 @@ public class UsuarioRepositoryAdapter implements UsuarioRepository {
     @Override
     public boolean existsByCorreo(String correo) {
         return jpaRepository.existsByCorreo(correo);
+    }
+
+    @Override
+    public boolean existsByUsuario(String usuario) {
+        return jpaRepository.existsByUsuario(usuario);
     }
 
     @Override

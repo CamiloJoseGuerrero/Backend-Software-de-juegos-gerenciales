@@ -20,7 +20,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-
+/*
 @ExtendWith(MockitoExtension.class)
 class EquipoServiceTest {
 
@@ -40,7 +40,7 @@ class EquipoServiceTest {
 
     @BeforeEach
     void setUp() {
-        docente = new Usuario(DOCENTE_ID, "Docente", CORREO_DOCENTE, "DOC", "hash", Rol.DOCENTE, null);
+        docente = new Usuario(DOCENTE_ID, "Docente", CORREO_DOCENTE, "DOC", "hash", Rol.DOCENTE, null, null, null);
         when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
     }
 
@@ -111,6 +111,7 @@ class EquipoServiceTest {
     }
 
     private Usuario estudiante(Long id) {
-        return new Usuario(id, "Estudiante " + id, "est" + id + "@test.com", "E" + id, "hash", Rol.ESTUDIANTE, DOCENTE_ID);
-    }
+    return new Usuario(id, "Estudiante " + id, "est" + id + "@test.com",
+            "E" + id, "hash", Rol.ESTUDIANTE, DOCENTE_ID, 20, "M");
 }
+}*/

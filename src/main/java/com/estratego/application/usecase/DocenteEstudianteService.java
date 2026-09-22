@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
+/*
 @Service
 @RequiredArgsConstructor
 public class DocenteEstudianteService {
@@ -44,4 +44,4 @@ public class DocenteEstudianteService {
                 .orElseThrow(() -> new InvalidCredentialsException("Docente no encontrado"))
                 .getId();
     }
-}
+}*/

@@ -5,8 +5,10 @@ import com.estratego.application.dto.auth.LoginResponse;
 import com.estratego.application.dto.auth.RegistroDocenteRequest;
 import com.estratego.application.dto.auth.UsuarioResponse;
 import com.estratego.application.mapper.UsuarioMapper;
+import com.estratego.domain.model.usuario.Profesor;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.ProfesorRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import com.estratego.infrastructure.security.JwtService;
 import com.estratego.infrastructure.security.LoginAttemptService;
@@ -34,6 +36,9 @@ class AuthServiceTest {
     private UsuarioRepository usuarioRepository;
 
     @Mock
+    private ProfesorRepository profesorRepository;
+
+    @Mock
     private JwtService jwtService;
 
     @Mock
@@ -52,7 +57,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        usuario = new Usuario(1L, "Ana", "ana@correo.com", "123", "hashed", Rol.DOCENTE, null);
+        usuario = new Usuario(1L, "Ana", "ana@correo.com", "123", "ana", "hash", Rol.DOCENTE);
     }
 
     @Test
@@ -61,7 +66,7 @@ class AuthServiceTest {
         UsuarioResponse usuarioResponse = new UsuarioResponse(1L, "Ana", "ana@correo.com", "123", "DOCENTE");
 
         when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(usuario));
-        when(passwordEncoder.matches("Password1!", "hashed")).thenReturn(true);
+        when(passwordEncoder.matches("Password1!", "hash")).thenReturn(true);
         when(jwtService.generateToken("ana@correo.com")).thenReturn("token");
         when(usuarioMapper.toResponse(usuario)).thenReturn(usuarioResponse);
 
@@ -76,7 +81,7 @@ class AuthServiceTest {
     void loginConCredencialesInvalidasRegistraFallo() {
         LoginRequest request = new LoginRequest("ana@correo.com", "incorrecta");
         when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(usuario));
-        when(passwordEncoder.matches("incorrecta", "hashed")).thenReturn(false);
+        when(passwordEncoder.matches("incorrecta", "hash")).thenReturn(false);
 
         assertThrows(InvalidCredentialsException.class, () -> authService.login(request));
         verify(loginAttemptService).recordFailure("ana@correo.com");
@@ -84,12 +89,12 @@ class AuthServiceTest {
 
     @Test
     void loginEstudianteRetornaRolEstudiante() {
-        Usuario estudiante = new Usuario(2L, "Carlos", "carlos@correo.com", "456", "hashed", Rol.ESTUDIANTE, 1L);
+        Usuario estudiante = new Usuario(2L, "Carlos", "carlos@correo.com", "456", "carlos", "hash", Rol.ESTUDIANTE);
         LoginRequest request = new LoginRequest("carlos@correo.com", "Password1!");
         UsuarioResponse usuarioResponse = new UsuarioResponse(2L, "Carlos", "carlos@correo.com", "456", "ESTUDIANTE");
 
         when(usuarioRepository.findByCorreo("carlos@correo.com")).thenReturn(Optional.of(estudiante));
-        when(passwordEncoder.matches("Password1!", "hashed")).thenReturn(true);
+        when(passwordEncoder.matches("Password1!", "hash")).thenReturn(true);
         when(jwtService.generateToken("carlos@correo.com")).thenReturn("token-estudiante");
         when(usuarioMapper.toResponse(estudiante)).thenReturn(usuarioResponse);
 
@@ -103,13 +108,15 @@ class AuthServiceTest {
         RegistroDocenteRequest request = new RegistroDocenteRequest(
                 " Ana ", "ANA@CORREO.COM ", " 123 ", "Password1!"
         );
-        Usuario guardado = new Usuario(1L, "Ana", "ana@correo.com", "123", "hashed", Rol.DOCENTE, null);
+        Usuario guardado = new Usuario(1L, "Ana", "ana@correo.com", "123", "ana", "hash", Rol.DOCENTE);
         UsuarioResponse usuarioResponse = new UsuarioResponse(1L, "Ana", "ana@correo.com", "123", "DOCENTE");
 
         when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(false);
         when(usuarioRepository.existsByNumeroIdentificacion("123")).thenReturn(false);
-        when(passwordEncoder.encode("Password1!")).thenReturn("hashed");
+        when(usuarioRepository.existsByUsuario("ana")).thenReturn(false);
+        when(passwordEncoder.encode("Password1!")).thenReturn("hash");
         when(usuarioRepository.save(any(Usuario.class))).thenReturn(guardado);
+        when(profesorRepository.save(any(Profesor.class))).thenAnswer(inv -> inv.getArgument(0));
         when(jwtService.generateToken("ana@correo.com")).thenReturn("token");
         when(usuarioMapper.toResponse(guardado)).thenReturn(usuarioResponse);
 
@@ -122,6 +129,7 @@ class AuthServiceTest {
                         && saved.getCorreo().equals("ana@correo.com")
                         && saved.getNumeroIdentificacion().equals("123")
         ));
+        verify(profesorRepository).save(any(Profesor.class));
     }
 
     @Test

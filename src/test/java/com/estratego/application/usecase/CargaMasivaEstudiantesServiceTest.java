@@ -1,13 +1,12 @@
 package com.estratego.application.usecase;
 
-import com.estratego.application.dto.auth.UsuarioResponse;
 import com.estratego.application.dto.docente.CargaMasivaResponse;
-import com.estratego.application.mapper.UsuarioMapper;
+import com.estratego.domain.model.usuario.Estudiante;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.EstudianteRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -19,104 +18,153 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CargaMasivaEstudiantesServiceTest {
 
     private static final String CORREO_DOCENTE = "docente@correo.com";
-    private static final Long DOCENTE_ID = 99L;
 
     @Mock
     private UsuarioRepository usuarioRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private EstudianteRepository estudianteRepository;
 
     @Mock
-    private UsuarioMapper usuarioMapper;
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private CargaMasivaEstudiantesService service;
 
-    private Usuario docente;
-
-    @BeforeEach
-    void setUp() {
-        // Mockeamos findByCorreo para que el servicio resuelva el id del docente
-        docente = new Usuario(DOCENTE_ID, "Docente", CORREO_DOCENTE, "000", "hash", Rol.DOCENTE, null);
-        when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
-    }
-
     @Test
-    void procesaEstudianteGeneraContrasenaYAsignaRolEstudiante() throws IOException {
+    void procesaArchivoConOrdenCorreoPrimero() throws IOException {
         MockMultipartFile archivo = crearArchivo(
-                new String[]{"Ana Perez", "ANA@correo.com", "123456"}
+                new String[]{"correo", "nombre", "numeroIdentificacion", "edad", "genero"},
+                new String[]{"ana@correo.com", "Ana Perez", "123456", "20", "F"}
         );
-        Usuario guardado = new Usuario(1L, "Ana Perez", "ana@correo.com", "123456", "hash", Rol.ESTUDIANTE, DOCENTE_ID);
-        UsuarioResponse response = new UsuarioResponse(1L, "Ana Perez", "ana@correo.com", "123456", "ESTUDIANTE");
 
         when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(false);
         when(usuarioRepository.existsByNumeroIdentificacion("123456")).thenReturn(false);
+        when(usuarioRepository.existsByUsuario("ana")).thenReturn(false);
         when(passwordEncoder.encode("Usu-001-123456!")).thenReturn("hash");
-        when(usuarioRepository.save(any(Usuario.class))).thenReturn(guardado);
-        when(usuarioMapper.toResponse(guardado)).thenReturn(response);
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> {
+            Usuario u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(estudianteRepository.save(any(Estudiante.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
 
         assertEquals(1, resultado.getCreados().size());
         assertTrue(resultado.getErrores().isEmpty());
 
-        ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
-        verify(usuarioRepository).save(captor.capture());
+        var creado = resultado.getCreados().get(0);
+        assertEquals("ana@correo.com", creado.getCorreo());
+        assertEquals("Ana Perez", creado.getNombre());
+        assertEquals(20, creado.getEdad());
+        assertEquals("F", creado.getGenero());
+        assertEquals("Usu-001-123456!", creado.getContrasenaGenerada());
 
-        assertEquals(Rol.ESTUDIANTE, captor.getValue().getRol());
-        assertEquals(DOCENTE_ID, captor.getValue().getDocenteId());   // ← verifica la asignación
-        assertEquals("hash", captor.getValue().getContrasena());
+        ArgumentCaptor<Estudiante> captorEstudiante = ArgumentCaptor.forClass(Estudiante.class);
+        verify(estudianteRepository).save(captorEstudiante.capture());
+        assertEquals(20, captorEstudiante.getValue().getEdad());
+        assertEquals("F", captorEstudiante.getValue().getGenero());
+    }
 
-        verify(passwordEncoder).encode("Usu-001-123456!");
+    @Test
+    void procesaArchivoConOrdenNombrePrimero() throws IOException {
+        MockMultipartFile archivo = crearArchivo(
+                new String[]{"nombre", "correo", "numeroIdentificacion"},
+                new String[]{"Ana Perez", "ana@correo.com", "123456"}
+        );
+
+        when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(false);
+        when(usuarioRepository.existsByNumeroIdentificacion("123456")).thenReturn(false);
+        when(usuarioRepository.existsByUsuario("ana")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> {
+            Usuario u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(estudianteRepository.save(any(Estudiante.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
+
+        assertEquals(1, resultado.getCreados().size());
+        assertEquals("ana@correo.com", resultado.getCreados().get(0).getCorreo());
+        assertEquals("Ana Perez", resultado.getCreados().get(0).getNombre());
+    }
+
+    @Test
+    void rechazaEdadInvalida() throws IOException {
+        MockMultipartFile archivo = crearArchivo(
+                new String[]{"correo", "nombre", "numeroIdentificacion", "edad", "genero"},
+                new String[]{"ana@correo.com", "Ana Perez", "123456", "abc", "F"}
+        );
+
+        CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
+
+        assertEquals(1, resultado.getErrores().size());
+        assertEquals("La edad debe ser un número entero", resultado.getErrores().get(0).getMensaje());
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+    }
+
+    @Test
+    void rechazaGeneroInvalido() throws IOException {
+        MockMultipartFile archivo = crearArchivo(
+                new String[]{"correo", "nombre", "numeroIdentificacion", "edad", "genero"},
+                new String[]{"ana@correo.com", "Ana Perez", "123456", "20", "X"}
+        );
+
+        CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
+
+        assertEquals(1, resultado.getErrores().size());
+        assertEquals("El género debe ser M o F", resultado.getErrores().get(0).getMensaje());
+    }
+
+    @Test
+    void saltaFilasCompletamenteVacias() throws IOException {
+        MockMultipartFile archivo = crearArchivo(
+                new String[]{"correo", "nombre", "numeroIdentificacion", "edad", "genero"},
+                new String[]{"", "", "", "", ""}
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.procesar(archivo, CORREO_DOCENTE));
     }
 
     @Test
     void informaCorreoDuplicadoSinCrearUsuario() throws IOException {
         MockMultipartFile archivo = crearArchivo(
-                new String[]{"Ana Perez", "ana@correo.com", "123456"}
+                new String[]{"correo", "nombre", "numeroIdentificacion", "edad", "genero"},
+                new String[]{"ana@correo.com", "Ana Perez", "123456", "20", "F"}
         );
         when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(true);
 
         CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
 
-        assertTrue(resultado.getCreados().isEmpty());
         assertEquals(1, resultado.getErrores().size());
         assertEquals("El correo ya está registrado", resultado.getErrores().get(0).getMensaje());
         verify(usuarioRepository, never()).save(any(Usuario.class));
     }
 
-    private MockMultipartFile crearArchivo(String[] datos) throws IOException {
-        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            var sheet = workbook.createSheet("Estudiantes");
+    private MockMultipartFile crearArchivo(String[] headers, String[] datos) throws IOException {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            var sheet = wb.createSheet("Estudiantes");
             var encabezado = sheet.createRow(0);
-            encabezado.createCell(0).setCellValue("nombre");
-            encabezado.createCell(1).setCellValue("correo");
-            encabezado.createCell(2).setCellValue("numeroIdentificacion");
+            for (int i = 0; i < headers.length; i++) encabezado.createCell(i).setCellValue(headers[i]);
             var fila = sheet.createRow(1);
-            for (int index = 0; index < datos.length; index++) {
-                fila.createCell(index).setCellValue(datos[index]);
-            }
-            workbook.write(output);
-            return new MockMultipartFile(
-                    "archivo",
-                    "estudiantes.xlsx",
+            for (int i = 0; i < datos.length; i++) fila.createCell(i).setCellValue(datos[i]);
+            wb.write(out);
+            return new MockMultipartFile("archivo", "estudiantes.xlsx",
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    output.toByteArray()
-            );
+                    out.toByteArray());
         }
     }
 }
