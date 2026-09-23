@@ -25,7 +25,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         return new User(
                 usuario.getCorreo(),
-                usuario.getContrasena(),  // Contraseña hasheada con BCrypt
+                usuario.getContrasena(), 
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + usuario.getRol()))
         );
     }

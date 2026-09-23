@@ -1,6 +1,5 @@
 package com.estratego.domain.repository;
 
-import com.estratego.domain.model.partida.EstadoPartida;
 import com.estratego.domain.model.partida.Partida;
 
 import java.util.List;

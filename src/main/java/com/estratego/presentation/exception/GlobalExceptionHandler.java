@@ -107,6 +107,8 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.FORBIDDEN);
     }
 
+    
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGlobalException(Exception ex, WebRequest request) {
         log.error("Error inesperado procesando la solicitud", ex);
@@ -117,4 +119,20 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(apiError, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+        @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+        public ResponseEntity<ApiError> handleConstraintViolation(
+        jakarta.validation.ConstraintViolationException ex, WebRequest request) {
+                String message = ex.getConstraintViolations().stream()
+                .map(v -> v.getMessage())
+                .collect(Collectors.joining(", "));
+
+        ApiError apiError = new ApiError(
+        message,
+        HttpStatus.BAD_REQUEST.value(),
+        LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
+        );
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+        }
+    
 }
