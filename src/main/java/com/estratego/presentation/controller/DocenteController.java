@@ -1,9 +1,9 @@
 package com.estratego.presentation.controller;
 
-import com.estratego.application.dto.auth.UsuarioResponse;
 import com.estratego.application.dto.docente.CargaMasivaResponse;
+import com.estratego.application.dto.docente.EstudianteResponse;
 import com.estratego.application.usecase.CargaMasivaEstudiantesService;
-//import com.estratego.application.usecase.DocenteEstudianteService;
+import com.estratego.application.usecase.DocenteEstudianteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +21,7 @@ import java.util.List;
 public class DocenteController {
 
     private final CargaMasivaEstudiantesService cargaMasivaEstudiantesService;
-    //private final DocenteEstudianteService docenteEstudianteService;
+    private final DocenteEstudianteService docenteEstudianteService;
 
     @PostMapping(value = "/carga-masiva", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CargaMasivaResponse> cargarEstudiantes(
@@ -32,19 +32,19 @@ public class DocenteController {
         );
     }
 
-    /*@GetMapping
-    public ResponseEntity<List<UsuarioResponse>> listarEstudiantes(Authentication authentication) {
+    @GetMapping
+    public ResponseEntity<List<EstudianteResponse>> listarEstudiantes(Authentication authentication) {
         return ResponseEntity.ok(
-                docenteEstudianteService.listarEstudiantesDelDocente(authentication.getName())
+                docenteEstudianteService.listarTodosLosEstudiantes()
         );
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UsuarioResponse> obtenerEstudiante(
+    public ResponseEntity<EstudianteResponse> obtenerEstudiante(
             @PathVariable Long id,
             Authentication authentication) {
         return ResponseEntity.ok(
-                docenteEstudianteService.obtenerEstudianteDelDocente(id, authentication.getName())
+                docenteEstudianteService.obtenerEstudiante(id)
         );
-    }*/
+    }
 }

@@ -17,7 +17,7 @@ public class CrearSimulacionRequest {
 
     @NotBlank(message = "El nombre del curso es obligatorio")
     @Size(max = 150, message = "El nombre no puede exceder 150 caracteres")
-    private String nombreCurso;
+    private String nombre;
 
     @NotNull(message = "La fecha de inicio es obligatoria")
     @FutureOrPresent(message = "La fecha de inicio no puede ser pasada")

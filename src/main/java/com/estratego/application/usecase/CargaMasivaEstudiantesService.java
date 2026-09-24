@@ -113,11 +113,17 @@ public class CargaMasivaEstudiantesService {
                     );
                     estudianteRepository.save(estudiante);
 
-                    creados.add(new CreadoEstudianteResponse(
-                            guardado.getId(), guardado.getNombre(), guardado.getCorreo(),
-                            guardado.getNumeroIdentificacion(), edad, genero,
-                            guardado.getRol().name(), passwordPlano
-                    ));
+                   creados.add(new CreadoEstudianteResponse(
+                    guardado.getId(),
+                    guardado.getNombre(),
+                    guardado.getCorreo(),
+                    guardado.getNumeroIdentificacion(),
+                    edad,
+                    genero,
+                    guardado.getRol().name(),
+                    passwordPlano,
+                    java.time.LocalDateTime.now()
+));
                 } catch (DataIntegrityViolationException ex) {
                     errores.add(new ErrorCargaResponse(fila, correo, identificacion,
                             "El correo o la identificación ya existen en la base de datos"));

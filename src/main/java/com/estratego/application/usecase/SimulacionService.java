@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -29,7 +30,7 @@ public class SimulacionService {
         Simulacion simulacion = new Simulacion(
                 null,
                 idCoordinador,
-                request.getNombreCurso().trim(),
+                request.getNombre().trim(),
                 request.getFechaInicio(),
                 request.getFechaFin(),
                 EstadoSimulacion.BORRADOR
@@ -60,7 +61,7 @@ public class SimulacionService {
 
         validarFechas(request.getFechaInicio(), request.getFechaFin());
 
-        simulacion.setNombreCurso(request.getNombreCurso().trim());
+        simulacion.setNombre(request.getNombre().trim());
         simulacion.setFechaInicio(request.getFechaInicio());
         simulacion.setFechaFin(request.getFechaFin());
 
@@ -85,6 +86,10 @@ public class SimulacionService {
 
         if (simulacion.getEstado() != EstadoSimulacion.PROGRAMADA) {
             throw new IllegalArgumentException("Solo se puede iniciar una simulación en PROGRAMADA");
+        }
+
+        if (simulacion.getFechaInicio().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Aún no ha llegado la fecha de inicio");
         }
 
         simulacion.setEstado(EstadoSimulacion.EN_CURSO);
@@ -114,7 +119,7 @@ public class SimulacionService {
         simulacionRepository.deleteById(id);
     }
 
-    private void validarFechas(java.time.LocalDate fechaInicio, java.time.LocalDate fechaFin) {
+    private void validarFechas(LocalDate fechaInicio, LocalDate fechaFin) {
         if (fechaFin != null && fechaFin.isBefore(fechaInicio)) {
             throw new IllegalArgumentException("La fecha de fin no puede ser anterior a la de inicio");
         }
@@ -143,7 +148,7 @@ public class SimulacionService {
         return new SimulacionResponse(
                 s.getId(),
                 s.getIdUsuarioCoordinador(),
-                s.getNombreCurso(),
+                s.getNombre(),
                 s.getFechaInicio(),
                 s.getFechaFin(),
                 s.getEstado()

@@ -4,12 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreadoEstudianteResponse {
+public class EstudianteResponse {
 
     private Long id;
     private String nombre;
@@ -17,7 +15,5 @@ public class CreadoEstudianteResponse {
     private String numeroIdentificacion;
     private Integer edad;
     private String genero;
-    private String rol;
-    private String contrasenaGenerada;
-    private LocalDateTime cargadoEn;
+    private String usuario;
 }

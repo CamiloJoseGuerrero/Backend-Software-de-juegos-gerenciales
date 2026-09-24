@@ -14,7 +14,7 @@ public class SimulacionResponse {
 
     private Long id;
     private Long idUsuarioCoordinador;
-    private String nombreCurso;
+    private String nombre;
     private LocalDate fechaInicio;
     private LocalDate fechaFin;
     private EstadoSimulacion estado;

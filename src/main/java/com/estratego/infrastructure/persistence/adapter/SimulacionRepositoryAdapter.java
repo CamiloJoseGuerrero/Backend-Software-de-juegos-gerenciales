@@ -47,7 +47,7 @@ public class SimulacionRepositoryAdapter implements SimulacionRepository {
         return new Simulacion(
                 e.getId(),
                 e.getIdUsuarioCoordinador(),
-                e.getNombreCurso(),
+                e.getNombre(),
                 e.getFechaInicio(),
                 e.getFechaFin(),
                 e.getEstado()
@@ -58,7 +58,7 @@ public class SimulacionRepositoryAdapter implements SimulacionRepository {
         return new SimulacionEntity(
                 s.getId(),
                 s.getIdUsuarioCoordinador(),
-                s.getNombreCurso(),
+                s.getNombre(),
                 s.getFechaInicio(),
                 s.getFechaFin(),
                 s.getEstado()

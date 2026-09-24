@@ -62,7 +62,7 @@ class SimulacionServiceTest {
 
         var response = simulacionService.crear(request, CORREO_COORDINADOR);
 
-        assertEquals("Curso 2026-1", response.getNombreCurso());
+        assertEquals("Curso 2026-1", response.getNombre());
         assertEquals(EstadoSimulacion.BORRADOR, response.getEstado());
         assertEquals(COORDINADOR_ID, response.getIdUsuarioCoordinador());
     }

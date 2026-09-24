@@ -24,7 +24,7 @@ public class SimulacionEntity {
     private Long idUsuarioCoordinador;
 
     @Column(name = "nombre_curso", nullable = false, length = 150)
-    private String nombreCurso;
+    private String nombre;
 
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
