@@ -1,5 +1,7 @@
-package com.estratego.domain.model.empresa;
+package com.estratego.application.dto.docente;
 
+import com.estratego.domain.model.empresa.EstadoEmpresa;
+import com.estratego.domain.model.empresa.TipoJugador;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -7,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Empresa {
+public class EmpresaResponse {
 
     private Long id;
     private Long idSimulacion;
