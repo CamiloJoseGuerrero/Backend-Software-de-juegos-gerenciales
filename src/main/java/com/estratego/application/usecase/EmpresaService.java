@@ -9,6 +9,7 @@ import com.estratego.domain.model.empresa.TipoJugador;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.EmpresaRepository;
+import com.estratego.domain.repository.IntegranteRepository;
 import com.estratego.domain.repository.SimulacionRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class EmpresaService {
     private final EmpresaRepository empresaRepository;
     private final SimulacionRepository simulacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final IntegranteRepository integranteRepository;
 
     @Transactional
     public EmpresaResponse crear(Long idSimulacion, CrearEmpresaRequest request, String correoDocente) {
@@ -99,6 +101,7 @@ public class EmpresaService {
                     "Solo se pueden eliminar empresas de simulaciones BORRADOR o PROGRAMADA");
         }
 
+        integranteRepository.deleteByIdEmpresa(id);
         empresaRepository.deleteById(id);
     }
 

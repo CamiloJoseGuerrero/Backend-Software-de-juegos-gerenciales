@@ -9,6 +9,7 @@ import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
 import com.estratego.domain.repository.EmpresaRepository;
+import com.estratego.domain.repository.IntegranteRepository;
 import com.estratego.domain.repository.SimulacionRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,9 @@ class EmpresaServiceTest {
 
     @Mock
     private UsuarioRepository usuarioRepository;
+
+    @Mock
+    private IntegranteRepository integranteRepository;
 
     @InjectMocks
     private EmpresaService empresaService;

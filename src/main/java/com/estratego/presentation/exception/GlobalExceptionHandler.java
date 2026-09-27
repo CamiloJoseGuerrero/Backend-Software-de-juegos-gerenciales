@@ -6,6 +6,9 @@ import com.estratego.application.usecase.CuentaBloqueadaException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import java.util.Arrays;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -108,6 +111,26 @@ public class GlobalExceptionHandler {
     }
 
     
+
+    // JSON mal formado o valor de enum inválido (ej. departamento = "PRODUCCION") -> 400
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleMessageNotReadable(
+            HttpMessageNotReadableException ex, WebRequest request) {
+        String message = "El cuerpo de la solicitud no es válido";
+        if (ex.getCause() instanceof InvalidFormatException ife
+                && ife.getTargetType() != null && ife.getTargetType().isEnum()) {
+            String campo = ife.getPath().isEmpty() ? "campo"
+                    : ife.getPath().get(ife.getPath().size() - 1).getFieldName();
+            message = "Valor inválido '" + ife.getValue() + "' para " + campo
+                    + ". Valores permitidos: " + Arrays.toString(ife.getTargetType().getEnumConstants());
+        }
+        ApiError apiError = new ApiError(
+                message,
+                HttpStatus.BAD_REQUEST.value(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
+        );
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGlobalException(Exception ex, WebRequest request) {
