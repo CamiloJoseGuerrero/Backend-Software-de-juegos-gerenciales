@@ -16,4 +16,6 @@ public interface EquipoRepository {
     Equipo save(Equipo equipo);
 
     long countByDocenteId(Long docenteId);
+
+    void deleteById(Long id);
 }

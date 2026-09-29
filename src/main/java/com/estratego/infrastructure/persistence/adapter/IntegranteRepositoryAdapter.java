@@ -67,4 +67,11 @@ public class IntegranteRepositoryAdapter implements IntegranteRepository {
         return new IntegranteEntity(i.getId(), i.getIdEmpresa(), i.getIdUsuario(),
                 i.getDepartamento(), i.isEsLider());
     }
+
+    @Override
+    public List<Integrante> findByIdUsuario(Long idUsuario) {
+        return jpaRepository.findByIdUsuario(idUsuario).stream()
+                .map(this::toDomain)
+                .toList();
+    }
 }

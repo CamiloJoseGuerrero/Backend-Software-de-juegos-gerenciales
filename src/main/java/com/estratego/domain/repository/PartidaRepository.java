@@ -18,4 +18,6 @@ public interface PartidaRepository {
     boolean existsByCasoId(Long casoId);
 
     boolean existeEquipoEnPartidaEnCurso(Long equipoId, Long excluirPartidaId);
+
+    boolean existeEquipoEnAlgunaPartida(Long equipoId);
 }

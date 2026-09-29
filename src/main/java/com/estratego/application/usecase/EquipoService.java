@@ -7,6 +7,7 @@ import com.estratego.domain.model.equipo.Equipo;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
 import com.estratego.domain.repository.EquipoRepository;
+import com.estratego.domain.repository.PartidaRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,11 +23,12 @@ public class EquipoService {
 
     private final EquipoRepository equipoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PartidaRepository partidaRepository;
 
     @Transactional
     public EquipoResponse crear(CrearEquipoRequest request, String correoDocente) {
         Long docenteId = resolverDocenteId(correoDocente);
-        //validarEstudiantes(request.getEstudianteIds(), request.getLiderId(), docenteId);
+        validarEstudiantes(request.getEstudianteIds(), request.getLiderId());
         validarEstudiantesNoAsignados(request.getEstudianteIds(), docenteId, null);
 
         long siguiente = equipoRepository.countByDocenteId(docenteId) + 1;
@@ -70,7 +72,7 @@ public class EquipoService {
             throw new IllegalArgumentException("El equipo no pertenece a este docente");
         }
 
-        //validarEstudiantes(request.getEstudianteIds(), request.getLiderId(), docenteId);
+        validarEstudiantes(request.getEstudianteIds(), request.getLiderId());
         validarEstudiantesNoAsignados(request.getEstudianteIds(), docenteId, id);
 
         equipo.setLiderId(request.getLiderId());
@@ -79,7 +81,7 @@ public class EquipoService {
         return toResponse(equipoRepository.save(equipo));
     }
 
-    /*private void validarEstudiantes(List<Long> estudianteIds, Long liderId, Long docenteId) {
+    private void validarEstudiantes(List<Long> estudianteIds, Long liderId) {
         Set<Long> idsUnicos = new HashSet<>(estudianteIds);
         if (idsUnicos.size() != estudianteIds.size()) {
             throw new IllegalArgumentException("No se pueden repetir estudiantes en el equipo");
@@ -89,18 +91,35 @@ public class EquipoService {
             throw new IllegalArgumentException("El líder debe ser uno de los estudiantes del equipo");
         }
 
+        // Nota: ya no se valida "pertenece a este docente": el modelo usuario+estudiante
+        // no guarda docenteId. La pertenencia ahora es simulación -> empresa -> integrante.
         for (Long id : estudianteIds) {
             Usuario estudiante = usuarioRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado: " + id));
-
             if (estudiante.getRol() != Rol.ESTUDIANTE) {
                 throw new IllegalArgumentException("El usuario " + id + " no es estudiante");
             }
-            if (!docenteId.equals(estudiante.getDocenteId())) {
-                throw new IllegalArgumentException("El estudiante " + id + " no pertenece a este docente");
-            }
         }
-    }*/
+    }
+
+    @Transactional
+    public void eliminar(Long id, String correoDocente) {
+        Long docenteId = resolverDocenteId(correoDocente);
+
+        Equipo equipo = equipoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Equipo no encontrado"));
+
+        if (!docenteId.equals(equipo.getDocenteId())) {
+            throw new IllegalArgumentException("El equipo no pertenece a este docente");
+        }
+
+        if (partidaRepository.existeEquipoEnAlgunaPartida(id)) {
+            throw new IllegalArgumentException(
+                    "El equipo está asignado a una partida. Quítelo de la partida antes de eliminarlo");
+        }
+
+        equipoRepository.deleteById(id);
+    }
 
     private void validarEstudiantesNoAsignados(List<Long> estudianteIds, Long docenteId, Long equipoIdExcluir) {
         List<Equipo> equipos = equipoRepository.findByDocenteId(docenteId);

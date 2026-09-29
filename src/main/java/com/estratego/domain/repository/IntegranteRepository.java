@@ -24,4 +24,6 @@ public interface IntegranteRepository {
     void deleteById(Long id);
 
     void deleteByIdEmpresa(Long idEmpresa);
+
+    List<Integrante> findByIdUsuario(Long idUsuario);
 }

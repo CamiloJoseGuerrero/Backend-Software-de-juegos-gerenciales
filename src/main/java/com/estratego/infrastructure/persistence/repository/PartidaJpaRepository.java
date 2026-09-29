@@ -22,4 +22,7 @@ public interface PartidaJpaRepository extends JpaRepository<PartidaEntity, Long>
             @Param("equipoId") Long equipoId,
             @Param("estado") EstadoPartida estado,
             @Param("excluirId") Long excluirId);
+
+    @Query("SELECT COUNT(p) > 0 FROM PartidaEntity p JOIN p.equipoIds e WHERE e = :equipoId")
+    boolean existsByEquipoId(@Param("equipoId") Long equipoId);
 }

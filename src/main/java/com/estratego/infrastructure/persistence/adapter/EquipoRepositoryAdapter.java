@@ -65,4 +65,9 @@ public class EquipoRepositoryAdapter implements EquipoRepository {
                 .map(this::toDomain)
                 .toList();
     }
+
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
+    }
 }

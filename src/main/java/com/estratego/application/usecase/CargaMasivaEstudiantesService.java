@@ -8,9 +8,11 @@ import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
 import com.estratego.domain.repository.EstudianteRepository;
 import com.estratego.domain.repository.UsuarioRepository;
+import com.estratego.application.event.EstudiantesCargadosEvent;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -41,6 +43,7 @@ public class CargaMasivaEstudiantesService {
     private final UsuarioRepository usuarioRepository;
     private final EstudianteRepository estudianteRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public CargaMasivaResponse procesar(MultipartFile file, String correoDocente) {
@@ -50,6 +53,7 @@ public class CargaMasivaEstudiantesService {
         List<ErrorCargaResponse> errores = new ArrayList<>();
         Set<String> correosDelArchivo = new HashSet<>();
         Set<String> identificacionesDelArchivo = new HashSet<>();
+        List<EstudiantesCargadosEvent.Credencial> credenciales = new ArrayList<>();
 
         try (InputStream inputStream = file.getInputStream();
              Workbook workbook = new XSSFWorkbook(inputStream)) {
@@ -124,6 +128,8 @@ public class CargaMasivaEstudiantesService {
                     passwordPlano,
                     java.time.LocalDateTime.now()
 ));
+                    credenciales.add(new EstudiantesCargadosEvent.Credencial(
+                            guardado.getNombre(), guardado.getCorreo(), usuario, passwordPlano));
                 } catch (DataIntegrityViolationException ex) {
                     errores.add(new ErrorCargaResponse(fila, correo, identificacion,
                             "El correo o la identificación ya existen en la base de datos"));
@@ -137,6 +143,11 @@ public class CargaMasivaEstudiantesService {
 
         if (creados.isEmpty() && errores.isEmpty()) {
             throw new IllegalArgumentException("El archivo no contiene filas de datos");
+        }
+
+        // Los correos se envían después del commit (ver CredencialesEmailListener)
+        if (!credenciales.isEmpty()) {
+            eventPublisher.publishEvent(new EstudiantesCargadosEvent(credenciales));
         }
 
         return new CargaMasivaResponse(creados, errores);

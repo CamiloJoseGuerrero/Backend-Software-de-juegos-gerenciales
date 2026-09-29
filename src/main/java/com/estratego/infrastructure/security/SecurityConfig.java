@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/sesion").authenticated()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/docente/**").hasRole("DOCENTE")
+                        .requestMatchers("/api/estudiante/**").hasRole("ESTUDIANTE")
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(daoAuthenticationProvider())
@@ -90,20 +91,17 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
         
-        configuration.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "Accept",
-                "Origin",
-                "X-Requested-With",
-                "ngrok-skip-browser-warning"     
-        ));
+        // Cualquier header: el front puede enviar Authorization, ngrok-skip-browser-warning,
+        // Cache-Control, etc. sin que el preflight falle
+        configuration.setAllowedHeaders(List.of("*"));
 
 
         configuration.setExposedHeaders(List.of("Authorization", "Content-Type"));
 
 
-        configuration.setAllowCredentials(false);
+        // true: el front puede usar withCredentials / credentials:"include" sin que el navegador
+        // bloquee el preflight. Es seguro porque los orígenes están listados (nunca "*").
+        configuration.setAllowCredentials(true);
 
         configuration.setMaxAge(3600L);
 

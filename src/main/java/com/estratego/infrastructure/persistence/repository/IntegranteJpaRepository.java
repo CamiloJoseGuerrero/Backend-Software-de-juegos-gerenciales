@@ -32,4 +32,6 @@ public interface IntegranteJpaRepository extends JpaRepository<IntegranteEntity,
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from IntegranteEntity i where i.idEmpresa = :idEmpresa")
     int deleteByIdEmpresa(@Param("idEmpresa") Long idEmpresa);
+
+    List<IntegranteEntity> findByIdUsuario(Long idUsuario);
 }

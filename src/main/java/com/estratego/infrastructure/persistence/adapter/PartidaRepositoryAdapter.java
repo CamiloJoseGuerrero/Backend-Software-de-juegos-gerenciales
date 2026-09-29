@@ -78,4 +78,9 @@ public class PartidaRepositoryAdapter implements PartidaRepository {
                 equipoId, EstadoPartida.EN_CURSO, excluirPartidaId).isEmpty();
     }
 
+
+    @Override
+    public boolean existeEquipoEnAlgunaPartida(Long equipoId) {
+        return jpaRepository.existsByEquipoId(equipoId);
+    }
 }

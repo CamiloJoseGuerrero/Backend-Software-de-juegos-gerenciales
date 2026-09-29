@@ -6,6 +6,7 @@ import com.estratego.domain.model.equipo.Equipo;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
 import com.estratego.domain.repository.EquipoRepository;
+import com.estratego.domain.repository.PartidaRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-/*
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class EquipoServiceTest {
 
@@ -33,14 +34,15 @@ class EquipoServiceTest {
     @Mock
     private UsuarioRepository usuarioRepository;
 
+    @Mock
+    private PartidaRepository partidaRepository;
+
     @InjectMocks
     private EquipoService equipoService;
 
-    private Usuario docente;
-
     @BeforeEach
     void setUp() {
-        docente = new Usuario(DOCENTE_ID, "Docente", CORREO_DOCENTE, "DOC", "hash", Rol.DOCENTE, null, null, null);
+        Usuario docente = new Usuario(DOCENTE_ID, "Docente", CORREO_DOCENTE, "DOC", "docente", "hash", Rol.DOCENTE);
         when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
     }
 
@@ -68,15 +70,40 @@ class EquipoServiceTest {
 
     @Test
     void crearEquipoRechazaLiderQueNoEstaEnElEquipo() {
-        CrearEquipoRequest request = new CrearEquipoRequest(List.of(1L, 2L), 99L);
+        CrearEquipoRequest request = new CrearEquipoRequest(List.of(1L, 2L), 7L);
 
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> equipoService.crear(request, CORREO_DOCENTE));
+        assertEquals("El líder debe ser uno de los estudiantes del equipo", ex.getMessage());
+        verify(equipoRepository, never()).save(any());
     }
 
     @Test
     void crearEquipoRechazaEstudianteDuplicado() {
         CrearEquipoRequest request = new CrearEquipoRequest(List.of(1L, 1L), 1L);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> equipoService.crear(request, CORREO_DOCENTE));
+        assertEquals("No se pueden repetir estudiantes en el equipo", ex.getMessage());
+    }
+
+    @Test
+    void crearEquipoRechazaUsuarioQueNoEsEstudiante() {
+        CrearEquipoRequest request = new CrearEquipoRequest(List.of(1L, 5L), 1L);
+        Usuario otroDocente = new Usuario(5L, "Otro", "otro@test.com", "D5", "otro", "hash", Rol.DOCENTE);
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(estudiante(1L)));
+        when(usuarioRepository.findById(5L)).thenReturn(Optional.of(otroDocente));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> equipoService.crear(request, CORREO_DOCENTE));
+        assertEquals("El usuario 5 no es estudiante", ex.getMessage());
+    }
+
+    @Test
+    void crearEquipoRechazaEstudianteInexistente() {
+        CrearEquipoRequest request = new CrearEquipoRequest(List.of(1L), 1L);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class,
                 () -> equipoService.crear(request, CORREO_DOCENTE));
@@ -110,8 +137,49 @@ class EquipoServiceTest {
         assertEquals(2L, response.getLiderId());
     }
 
+    @Test
+    void eliminarEquipoSinPartidas() {
+        Equipo existente = new Equipo(1L, "Equipo 1", DOCENTE_ID, 1L, List.of(1L));
+        when(equipoRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(partidaRepository.existeEquipoEnAlgunaPartida(1L)).thenReturn(false);
+
+        equipoService.eliminar(1L, CORREO_DOCENTE);
+
+        verify(equipoRepository).deleteById(1L);
+    }
+
+    @Test
+    void eliminarEquipoAsignadoAPartidaFalla() {
+        Equipo existente = new Equipo(1L, "Equipo 1", DOCENTE_ID, 1L, List.of(1L));
+        when(equipoRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(partidaRepository.existeEquipoEnAlgunaPartida(1L)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> equipoService.eliminar(1L, CORREO_DOCENTE));
+        verify(equipoRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void eliminarEquipoDeOtroDocenteFalla() {
+        Equipo ajeno = new Equipo(1L, "Equipo 1", 1234L, 1L, List.of(1L));
+        when(equipoRepository.findById(1L)).thenReturn(Optional.of(ajeno));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> equipoService.eliminar(1L, CORREO_DOCENTE));
+        assertEquals("El equipo no pertenece a este docente", ex.getMessage());
+        verify(equipoRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void eliminarEquipoInexistenteFalla() {
+        when(equipoRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> equipoService.eliminar(1L, CORREO_DOCENTE));
+    }
+
     private Usuario estudiante(Long id) {
-    return new Usuario(id, "Estudiante " + id, "est" + id + "@test.com",
-            "E" + id, "hash", Rol.ESTUDIANTE, DOCENTE_ID, 20, "M");
+        return new Usuario(id, "Estudiante " + id, "est" + id + "@test.com",
+                "E" + id, "est" + id, "hash", Rol.ESTUDIANTE);
+    }
 }
-}*/

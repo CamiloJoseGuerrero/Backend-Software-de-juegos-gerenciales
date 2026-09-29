@@ -49,4 +49,12 @@ public class EquipoController {
             Authentication authentication) {
         return ResponseEntity.ok(equipoService.actualizar(id, request, authentication.getName()));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(
+            @PathVariable Long id,
+            Authentication authentication) {
+        equipoService.eliminar(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
 }
