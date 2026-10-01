@@ -13,6 +13,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
+# PowerShell 5.1 envía "Expect: 100-continue" en peticiones con cuerpo; a través de ngrok eso
+# hace que reporte 200 en vez del código real (201, 400...). Se desactiva.
+[Net.ServicePointManager]::Expect100Continue = $false
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Estudiantes de la carga masiva (contraseña = Usu-001-<cédula>!)
 $lider   = @{ id = 17; correo = "andres.martinez.prueba@correo.edu.co"; cedula = "1101000001" }

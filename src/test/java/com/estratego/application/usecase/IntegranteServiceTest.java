@@ -11,6 +11,7 @@ import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EmpresaRepository;
 import com.estratego.domain.repository.IntegranteRepository;
 import com.estratego.domain.repository.SimulacionRepository;
@@ -43,6 +44,7 @@ class IntegranteServiceTest {
     @Mock private EmpresaRepository empresaRepository;
     @Mock private SimulacionRepository simulacionRepository;
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private DocenteEstudianteRepository docenteEstudianteRepository;
 
     @InjectMocks
     private IntegranteService integranteService;
@@ -66,6 +68,8 @@ class IntegranteServiceTest {
         when(empresaRepository.findById(EMPRESA_ID)).thenReturn(Optional.of(empresa));
         when(simulacionRepository.findById(SIMULACION_ID)).thenReturn(Optional.of(simulacion));
         when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
+        // El estudiante de prueba fue cargado por este docente
+        lenient().when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, ESTUDIANTE_ID)).thenReturn(true);
     }
 
     private void guardarDevuelveConId() {
@@ -122,6 +126,20 @@ class IntegranteServiceTest {
     }
 
     @Test
+    void rechazaEstudianteDeOtroDocente() {
+        contextoValido();
+        when(usuarioRepository.findById(ESTUDIANTE_ID)).thenReturn(Optional.of(estudiante));
+        when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, ESTUDIANTE_ID)).thenReturn(false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                integranteService.agregar(EMPRESA_ID,
+                        new AgregarIntegranteRequest(ESTUDIANTE_ID, null, null), CORREO_DOCENTE));
+
+        assertEquals("El estudiante no está en tu lista de estudiantes", ex.getMessage());
+        verify(integranteRepository, never()).save(any());
+    }
+
+    @Test
     void rechazaEstudianteQueYaEstaEnOtraEmpresaDeLaSimulacion() {
         contextoValido();
         when(usuarioRepository.findById(ESTUDIANTE_ID)).thenReturn(Optional.of(estudiante));
@@ -150,10 +168,12 @@ class IntegranteServiceTest {
         Usuario otro = new Usuario(21L, "Luis", "luis@test.com", "456", "luis", "hash", Rol.ESTUDIANTE);
         when(usuarioRepository.findById(21L)).thenReturn(Optional.of(otro));
         when(integranteRepository.existsEnSimulacion(SIMULACION_ID, 21L)).thenReturn(false);
+        when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, 21L)).thenReturn(true);
 
-        assertThrows(IllegalArgumentException.class, () ->
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                 integranteService.agregar(EMPRESA_ID,
                         new AgregarIntegranteRequest(21L, null, null), CORREO_DOCENTE));
+        assertEquals("Una empresa MONOUSUARIO solo puede tener un integrante", ex.getMessage());
     }
 
     @Test

@@ -11,6 +11,7 @@ import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EmpresaRepository;
 import com.estratego.domain.repository.IntegranteRepository;
 import com.estratego.domain.repository.SimulacionRepository;
@@ -29,6 +30,7 @@ public class IntegranteService {
     private final EmpresaRepository empresaRepository;
     private final SimulacionRepository simulacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final DocenteEstudianteRepository docenteEstudianteRepository;
 
     @Transactional
     public IntegranteResponse agregar(Long idEmpresa, AgregarIntegranteRequest request, String correoDocente) {
@@ -39,6 +41,10 @@ public class IntegranteService {
                 .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado"));
         if (usuario.getRol() != Rol.ESTUDIANTE) {
             throw new IllegalArgumentException("El usuario no es un estudiante");
+        }
+        if (!docenteEstudianteRepository.existeVinculo(
+                ctx.simulacion().getIdUsuarioCoordinador(), usuario.getId())) {
+            throw new IllegalArgumentException("El estudiante no está en tu lista de estudiantes");
         }
 
         if (integranteRepository.existsEnSimulacion(ctx.simulacion().getId(), usuario.getId())) {

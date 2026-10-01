@@ -1,12 +1,17 @@
 package com.estratego.application.usecase;
 
 import com.estratego.application.dto.docente.CargaMasivaResponse;
+import com.estratego.application.dto.docente.CrearEstudianteRequest;
+import com.estratego.application.dto.docente.CreadoEstudianteResponse;
+import com.estratego.application.event.EstudiantesCargadosEvent;
 import com.estratego.domain.model.usuario.Estudiante;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EstudianteRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -19,6 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,12 +34,16 @@ import static org.mockito.Mockito.*;
 class CargaMasivaEstudiantesServiceTest {
 
     private static final String CORREO_DOCENTE = "docente@correo.com";
+    private static final Long DOCENTE_ID = 99L;
 
     @Mock
     private UsuarioRepository usuarioRepository;
 
     @Mock
     private EstudianteRepository estudianteRepository;
+
+    @Mock
+    private DocenteEstudianteRepository docenteEstudianteRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -44,6 +54,25 @@ class CargaMasivaEstudiantesServiceTest {
     @InjectMocks
     private CargaMasivaEstudiantesService service;
 
+    @BeforeEach
+    void setUp() {
+        Usuario docente = new Usuario(DOCENTE_ID, "Docente", CORREO_DOCENTE, "DOC", "docente", "hash", Rol.DOCENTE);
+        lenient().when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
+    }
+
+    private void guardadoDevuelveConId() {
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> {
+            Usuario u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(estudianteRepository.save(any(Estudiante.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    private Usuario estudianteExistente() {
+        return new Usuario(50L, "Ana Perez", "ana@correo.com", "123456", "ana", "hash", Rol.ESTUDIANTE);
+    }
+
     @Test
     void procesaArchivoConOrdenCorreoPrimero() throws IOException {
         MockMultipartFile archivo = crearArchivo(
@@ -51,8 +80,6 @@ class CargaMasivaEstudiantesServiceTest {
                 new String[]{"ana@correo.com", "Ana Perez", "123456", "20", "F"}
         );
 
-        when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(false);
-        when(usuarioRepository.existsByNumeroIdentificacion("123456")).thenReturn(false);
         when(usuarioRepository.existsByUsuario("ana")).thenReturn(false);
         when(passwordEncoder.encode("Usu-001-123456!")).thenReturn("hash");
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> {
@@ -73,6 +100,8 @@ class CargaMasivaEstudiantesServiceTest {
         assertEquals(20, creado.getEdad());
         assertEquals("F", creado.getGenero());
         assertEquals("Usu-001-123456!", creado.getContrasenaGenerada());
+        verify(docenteEstudianteRepository).vincular(DOCENTE_ID, 1L);
+        verify(eventPublisher).publishEvent(any(EstudiantesCargadosEvent.class));
 
         ArgumentCaptor<Estudiante> captorEstudiante = ArgumentCaptor.forClass(Estudiante.class);
         verify(estudianteRepository).save(captorEstudiante.capture());
@@ -87,8 +116,6 @@ class CargaMasivaEstudiantesServiceTest {
                 new String[]{"Ana Perez", "ana@correo.com", "123456"}
         );
 
-        when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(false);
-        when(usuarioRepository.existsByNumeroIdentificacion("123456")).thenReturn(false);
         when(usuarioRepository.existsByUsuario("ana")).thenReturn(false);
         when(passwordEncoder.encode(any())).thenReturn("hash");
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> {
@@ -144,18 +171,106 @@ class CargaMasivaEstudiantesServiceTest {
     }
 
     @Test
-    void informaCorreoDuplicadoSinCrearUsuario() throws IOException {
+    void vinculaEstudianteExistenteDeOtroDocenteSinCrearCuenta() throws IOException {
         MockMultipartFile archivo = crearArchivo(
-                new String[]{"correo", "nombre", "numeroIdentificacion", "edad", "genero"},
-                new String[]{"ana@correo.com", "Ana Perez", "123456", "20", "F"}
+                new String[]{"correo", "nombre", "numeroIdentificacion"},
+                new String[]{"ana@correo.com", "Ana Perez", "123456"}
         );
-        when(usuarioRepository.existsByCorreo("ana@correo.com")).thenReturn(true);
+        Usuario ana = estudianteExistente();
+        when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(ana));
+        when(usuarioRepository.findByNumeroIdentificacion("123456")).thenReturn(Optional.of(ana));
+        when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, 50L)).thenReturn(false);
+
+        CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
+
+        assertTrue(resultado.getCreados().isEmpty());
+        assertTrue(resultado.getErrores().isEmpty());
+        assertEquals(1, resultado.getVinculados().size());
+        assertEquals(50L, resultado.getVinculados().get(0).getId());
+        verify(docenteEstudianteRepository).vincular(DOCENTE_ID, 50L);
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void informaEstudianteQueYaEstaEnLaLista() throws IOException {
+        MockMultipartFile archivo = crearArchivo(
+                new String[]{"correo", "nombre", "numeroIdentificacion"},
+                new String[]{"ana@correo.com", "Ana Perez", "123456"}
+        );
+        Usuario ana = estudianteExistente();
+        when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(ana));
+        when(usuarioRepository.findByNumeroIdentificacion("123456")).thenReturn(Optional.of(ana));
+        when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, 50L)).thenReturn(true);
 
         CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
 
         assertEquals(1, resultado.getErrores().size());
-        assertEquals("El correo ya está registrado", resultado.getErrores().get(0).getMensaje());
+        assertEquals("El estudiante ya está en tu lista", resultado.getErrores().get(0).getMensaje());
+        verify(docenteEstudianteRepository, never()).vincular(any(), any());
+    }
+
+    @Test
+    void rechazaCorreoRegistradoConOtraIdentificacion() throws IOException {
+        MockMultipartFile archivo = crearArchivo(
+                new String[]{"correo", "nombre", "numeroIdentificacion"},
+                new String[]{"ana@correo.com", "Ana Perez", "999999"}
+        );
+        when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(estudianteExistente()));
+        when(usuarioRepository.findByNumeroIdentificacion("999999")).thenReturn(Optional.empty());
+
+        CargaMasivaResponse resultado = service.procesar(archivo, CORREO_DOCENTE);
+
+        assertEquals(1, resultado.getErrores().size());
+        assertEquals("El correo ya está registrado con otra identificación",
+                resultado.getErrores().get(0).getMensaje());
         verify(usuarioRepository, never()).save(any(Usuario.class));
+        verify(docenteEstudianteRepository, never()).vincular(any(), any());
+    }
+
+    @Test
+    void crearManualCreaCuentaYEnviaContrasena() {
+        when(usuarioRepository.existsByUsuario("luis")).thenReturn(false);
+        when(passwordEncoder.encode("Usu-001-777!")).thenReturn("hash");
+        guardadoDevuelveConId();
+
+        CreadoEstudianteResponse r = service.crearManual(
+                new CrearEstudianteRequest("Luis Gómez", " Luis@Correo.com ", "777", 21, "m"), CORREO_DOCENTE);
+
+        assertEquals("luis@correo.com", r.getCorreo());
+        assertEquals("M", r.getGenero());
+        assertEquals("Usu-001-777!", r.getContrasenaGenerada());
+        verify(docenteEstudianteRepository).vincular(DOCENTE_ID, 1L);
+        verify(eventPublisher).publishEvent(any(EstudiantesCargadosEvent.class));
+    }
+
+    @Test
+    void crearManualVinculaEstudianteExistente() {
+        Usuario ana = estudianteExistente();
+        when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(ana));
+        when(usuarioRepository.findByNumeroIdentificacion("123456")).thenReturn(Optional.of(ana));
+        when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, 50L)).thenReturn(false);
+
+        CreadoEstudianteResponse r = service.crearManual(
+                new CrearEstudianteRequest("Ana Perez", "ana@correo.com", "123456", null, null), CORREO_DOCENTE);
+
+        assertEquals(50L, r.getId());
+        assertNull(r.getContrasenaGenerada());
+        verify(docenteEstudianteRepository).vincular(DOCENTE_ID, 50L);
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void crearManualRechazaEstudianteYaEnLaLista() {
+        Usuario ana = estudianteExistente();
+        when(usuarioRepository.findByCorreo("ana@correo.com")).thenReturn(Optional.of(ana));
+        when(usuarioRepository.findByNumeroIdentificacion("123456")).thenReturn(Optional.of(ana));
+        when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, 50L)).thenReturn(true);
+
+        UsuarioDuplicadoException ex = assertThrows(UsuarioDuplicadoException.class, () ->
+                service.crearManual(new CrearEstudianteRequest("Ana Perez", "ana@correo.com", "123456", null, null),
+                        CORREO_DOCENTE));
+        assertEquals("El estudiante ya está en tu lista", ex.getMessage());
     }
 
     private MockMultipartFile crearArchivo(String[] headers, String[] datos) throws IOException {

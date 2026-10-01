@@ -118,6 +118,12 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException ex, WebRequest request) {
         String message = "El cuerpo de la solicitud no es válido";
         if (ex.getCause() instanceof InvalidFormatException ife
+                && ife.getTargetType() == java.time.LocalDateTime.class) {
+            String campo = ife.getPath().isEmpty() ? "fecha"
+                    : ife.getPath().get(ife.getPath().size() - 1).getFieldName();
+            message = "Fecha inválida en " + campo + ": '" + ife.getValue()
+                    + "'. Use el formato 2026-09-29T16:10:00 (hora de Colombia) o ISO con Z";
+        } else if (ex.getCause() instanceof InvalidFormatException ife
                 && ife.getTargetType() != null && ife.getTargetType().isEnum()) {
             String campo = ife.getPath().isEmpty() ? "campo"
                     : ife.getPath().get(ife.getPath().size() - 1).getFieldName();

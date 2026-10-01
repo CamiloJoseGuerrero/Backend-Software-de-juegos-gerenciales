@@ -35,6 +35,11 @@ public class UsuarioRepositoryAdapter implements UsuarioRepository {
     }
 
     @Override
+    public Optional<Usuario> findByNumeroIdentificacion(String numeroIdentificacion) {
+        return jpaRepository.findByNumeroIdentificacion(numeroIdentificacion).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Usuario> findAll() {
         return jpaRepository.findAll().stream().map(mapper::toDomain).toList();
     }

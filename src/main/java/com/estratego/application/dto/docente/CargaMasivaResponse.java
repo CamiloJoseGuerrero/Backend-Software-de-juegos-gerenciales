@@ -11,6 +11,11 @@ import java.util.List;
 @AllArgsConstructor
 public class CargaMasivaResponse {
 
+    /** Estudiantes nuevos: se creó la cuenta y se envía la contraseña por correo. */
     private List<CreadoEstudianteResponse> creados;
+
+    /** Estudiantes que ya tenían cuenta (de otro docente): solo se agregaron a tu lista. */
+    private List<EstudianteResponse> vinculados;
+
     private List<ErrorCargaResponse> errores;
 }

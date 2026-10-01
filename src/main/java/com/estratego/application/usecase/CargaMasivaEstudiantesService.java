@@ -1,11 +1,14 @@
 package com.estratego.application.usecase;
 
 import com.estratego.application.dto.docente.CargaMasivaResponse;
+import com.estratego.application.dto.docente.CrearEstudianteRequest;
 import com.estratego.application.dto.docente.CreadoEstudianteResponse;
 import com.estratego.application.dto.docente.ErrorCargaResponse;
+import com.estratego.application.dto.docente.EstudianteResponse;
 import com.estratego.domain.model.usuario.Estudiante;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EstudianteRepository;
 import com.estratego.domain.repository.UsuarioRepository;
 import com.estratego.application.event.EstudiantesCargadosEvent;
@@ -22,8 +25,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.Normalizer;
+import java.time.LocalDateTime;
 import java.util.*;
 
+/**
+ * Alta de estudiantes por un docente, por Excel o manual.
+ * - Si el estudiante no existe: se crea la cuenta y se le envía la contraseña.
+ * - Si ya existe (lo cargó otro docente) con el mismo correo e identificación:
+ *   solo se agrega a la lista de este docente, sin nueva contraseña.
+ */
 @Service
 @RequiredArgsConstructor
 public class CargaMasivaEstudiantesService {
@@ -42,14 +52,22 @@ public class CargaMasivaEstudiantesService {
 
     private final UsuarioRepository usuarioRepository;
     private final EstudianteRepository estudianteRepository;
+    private final DocenteEstudianteRepository docenteEstudianteRepository;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** Resultado del alta de una fila: creado (con contraseña) o vinculado (ya existía). */
+    private record Alta(CreadoEstudianteResponse creado,
+                        EstudiantesCargadosEvent.Credencial credencial,
+                        EstudianteResponse vinculado) {}
 
     @Transactional
     public CargaMasivaResponse procesar(MultipartFile file, String correoDocente) {
         validateFile(file);
+        Long idDocente = resolverDocenteId(correoDocente);
 
         List<CreadoEstudianteResponse> creados = new ArrayList<>();
+        List<EstudianteResponse> vinculados = new ArrayList<>();
         List<ErrorCargaResponse> errores = new ArrayList<>();
         Set<String> correosDelArchivo = new HashSet<>();
         Set<String> identificacionesDelArchivo = new HashSet<>();
@@ -103,33 +121,15 @@ public class CargaMasivaEstudiantesService {
                 String genero = generoRaw.isBlank() ? null : generoRaw.toUpperCase(Locale.ROOT);
 
                 try {
-                    String passwordPlano = PREFIJO_PASSWORD + identificacion + SUFIJO_PASSWORD;
-                    String usuario = generarUsuarioDesdeCorreo(correo);
-
-                    Usuario usuarioObj = new Usuario(
-                            null, nombre, correo, identificacion, usuario,
-                            passwordEncoder.encode(passwordPlano), Rol.ESTUDIANTE
-                    );
-                    Usuario guardado = usuarioRepository.save(usuarioObj);
-
-                    Estudiante estudiante = new Estudiante(
-                            guardado.getId(), null, null, null, edad, genero
-                    );
-                    estudianteRepository.save(estudiante);
-
-                   creados.add(new CreadoEstudianteResponse(
-                    guardado.getId(),
-                    guardado.getNombre(),
-                    guardado.getCorreo(),
-                    guardado.getNumeroIdentificacion(),
-                    edad,
-                    genero,
-                    guardado.getRol().name(),
-                    passwordPlano,
-                    java.time.LocalDateTime.now()
-));
-                    credenciales.add(new EstudiantesCargadosEvent.Credencial(
-                            guardado.getNombre(), guardado.getCorreo(), usuario, passwordPlano));
+                    Alta alta = registrarOVincular(nombre, correo, identificacion, edad, genero, idDocente);
+                    if (alta.creado() != null) {
+                        creados.add(alta.creado());
+                        credenciales.add(alta.credencial());
+                    } else {
+                        vinculados.add(alta.vinculado());
+                    }
+                } catch (UsuarioDuplicadoException ex) {
+                    errores.add(new ErrorCargaResponse(fila, correo, identificacion, ex.getMessage()));
                 } catch (DataIntegrityViolationException ex) {
                     errores.add(new ErrorCargaResponse(fila, correo, identificacion,
                             "El correo o la identificación ya existen en la base de datos"));
@@ -141,16 +141,105 @@ public class CargaMasivaEstudiantesService {
             throw new IllegalArgumentException("No se pudo leer el archivo Excel", ex);
         }
 
-        if (creados.isEmpty() && errores.isEmpty()) {
+        if (creados.isEmpty() && vinculados.isEmpty() && errores.isEmpty()) {
             throw new IllegalArgumentException("El archivo no contiene filas de datos");
         }
 
-        // Los correos se envían después del commit (ver CredencialesEmailListener)
-        if (!credenciales.isEmpty()) {
-            eventPublisher.publishEvent(new EstudiantesCargadosEvent(credenciales));
+        publicarCredenciales(credenciales);
+        return new CargaMasivaResponse(creados, vinculados, errores);
+    }
+
+    /**
+     * Alta manual de un estudiante.
+     * @return el estudiante con {@code contrasenaGenerada} si se creó la cuenta,
+     *         o con {@code contrasenaGenerada = null} si ya existía y solo se vinculó.
+     */
+    @Transactional
+    public CreadoEstudianteResponse crearManual(CrearEstudianteRequest request, String correoDocente) {
+        Long idDocente = resolverDocenteId(correoDocente);
+
+        String correo = request.getCorreo().trim().toLowerCase(Locale.ROOT);
+        String genero = request.getGenero() == null || request.getGenero().isBlank()
+                ? null : request.getGenero().trim().toUpperCase(Locale.ROOT);
+
+        Alta alta = registrarOVincular(request.getNombre().trim(), correo,
+                request.getNumeroIdentificacion().trim(), request.getEdad(), genero, idDocente);
+
+        if (alta.creado() != null) {
+            publicarCredenciales(List.of(alta.credencial()));
+            return alta.creado();
+        }
+        EstudianteResponse v = alta.vinculado();
+        return new CreadoEstudianteResponse(v.getId(), v.getNombre(), v.getCorreo(),
+                v.getNumeroIdentificacion(), v.getEdad(), v.getGenero(), Rol.ESTUDIANTE.name(),
+                null, LocalDateTime.now());
+    }
+
+    /**
+     * Crea el estudiante y lo vincula al docente, o, si ya existe, solo lo vincula.
+     * @throws UsuarioDuplicadoException si los datos chocan con otro usuario o ya está en la lista.
+     */
+    private Alta registrarOVincular(String nombre, String correo, String identificacion,
+                                    Integer edad, String genero, Long idDocente) {
+        Optional<Usuario> porCorreo = usuarioRepository.findByCorreo(correo);
+        Optional<Usuario> porIdentificacion = usuarioRepository.findByNumeroIdentificacion(identificacion);
+
+        if (porCorreo.isPresent() || porIdentificacion.isPresent()) {
+            if (porCorreo.isEmpty()) {
+                throw new UsuarioDuplicadoException("La identificación ya está registrada con otro correo");
+            }
+            if (porIdentificacion.isEmpty()) {
+                throw new UsuarioDuplicadoException("El correo ya está registrado con otra identificación");
+            }
+            Usuario existente = porCorreo.get();
+            if (!existente.getId().equals(porIdentificacion.get().getId())) {
+                throw new UsuarioDuplicadoException(
+                        "El correo y la identificación pertenecen a usuarios distintos");
+            }
+            if (existente.getRol() != Rol.ESTUDIANTE) {
+                throw new UsuarioDuplicadoException("El correo pertenece a un usuario que no es estudiante");
+            }
+            if (docenteEstudianteRepository.existeVinculo(idDocente, existente.getId())) {
+                throw new UsuarioDuplicadoException("El estudiante ya está en tu lista");
+            }
+            docenteEstudianteRepository.vincular(idDocente, existente.getId());
+            Estudiante datos = estudianteRepository.findById(existente.getId()).orElse(null);
+            return new Alta(null, null, new EstudianteResponse(
+                    existente.getId(), existente.getNombre(), existente.getCorreo(),
+                    existente.getNumeroIdentificacion(),
+                    datos != null ? datos.getEdad() : null,
+                    datos != null ? datos.getGenero() : null,
+                    existente.getUsuario()));
         }
 
-        return new CargaMasivaResponse(creados, errores);
+        String passwordPlano = PREFIJO_PASSWORD + identificacion + SUFIJO_PASSWORD;
+        String usuario = generarUsuarioDesdeCorreo(correo);
+
+        Usuario guardado = usuarioRepository.save(new Usuario(
+                null, nombre, correo, identificacion, usuario,
+                passwordEncoder.encode(passwordPlano), Rol.ESTUDIANTE));
+        estudianteRepository.save(new Estudiante(guardado.getId(), null, null, null, edad, genero));
+        docenteEstudianteRepository.vincular(idDocente, guardado.getId());
+
+        return new Alta(new CreadoEstudianteResponse(
+                guardado.getId(), guardado.getNombre(), guardado.getCorreo(),
+                guardado.getNumeroIdentificacion(), edad, genero, guardado.getRol().name(),
+                passwordPlano, LocalDateTime.now()),
+                new EstudiantesCargadosEvent.Credencial(guardado.getNombre(), guardado.getCorreo(),
+                        usuario, passwordPlano),
+                null);
+    }
+
+    /** Los correos se envían después del commit (ver CredencialesEmailListener). */
+    private void publicarCredenciales(List<EstudiantesCargadosEvent.Credencial> credenciales) {
+        if (credenciales.isEmpty()) return;
+        eventPublisher.publishEvent(new EstudiantesCargadosEvent(credenciales));
+    }
+
+    private Long resolverDocenteId(String correoDocente) {
+        return usuarioRepository.findByCorreo(correoDocente)
+                .orElseThrow(() -> new InvalidCredentialsException("Docente no encontrado"))
+                .getId();
     }
 
     private String generarUsuarioDesdeCorreo(String correo) {
@@ -200,9 +289,6 @@ public class CargaMasivaEstudiantesService {
         if (!correosDelArchivo.add(correo)) return "El correo está repetido en el archivo";
         if (!identificacionesDelArchivo.add(identificacion))
             return "El número de identificación está repetido en el archivo";
-        if (usuarioRepository.existsByCorreo(correo)) return "El correo ya está registrado";
-        if (usuarioRepository.existsByNumeroIdentificacion(identificacion))
-            return "El número de identificación ya está registrado";
         if (!edadRaw.isBlank()) {
             try {
                 int edad = Integer.parseInt(edadRaw);

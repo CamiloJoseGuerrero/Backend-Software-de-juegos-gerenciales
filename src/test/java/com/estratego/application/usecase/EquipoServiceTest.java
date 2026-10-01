@@ -5,6 +5,7 @@ import com.estratego.application.dto.docente.CrearEquipoRequest;
 import com.estratego.domain.model.equipo.Equipo;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EquipoRepository;
 import com.estratego.domain.repository.PartidaRepository;
 import com.estratego.domain.repository.UsuarioRepository;
@@ -37,6 +38,9 @@ class EquipoServiceTest {
     @Mock
     private PartidaRepository partidaRepository;
 
+    @Mock
+    private DocenteEstudianteRepository docenteEstudianteRepository;
+
     @InjectMocks
     private EquipoService equipoService;
 
@@ -44,6 +48,8 @@ class EquipoServiceTest {
     void setUp() {
         Usuario docente = new Usuario(DOCENTE_ID, "Docente", CORREO_DOCENTE, "DOC", "docente", "hash", Rol.DOCENTE);
         when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
+        // Por defecto, los estudiantes de prueba los cargó este docente
+        lenient().when(docenteEstudianteRepository.existeVinculo(eq(DOCENTE_ID), anyLong())).thenReturn(true);
     }
 
     @Test
@@ -98,6 +104,20 @@ class EquipoServiceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> equipoService.crear(request, CORREO_DOCENTE));
         assertEquals("El usuario 5 no es estudiante", ex.getMessage());
+    }
+
+    @Test
+    void crearEquipoRechazaEstudianteDeOtroDocente() {
+        CrearEquipoRequest request = new CrearEquipoRequest(List.of(1L, 2L), 1L);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(estudiante(1L)));
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(estudiante(2L)));
+        when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, 2L)).thenReturn(false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> equipoService.crear(request, CORREO_DOCENTE));
+
+        assertEquals("El estudiante 2 no está en tu lista de estudiantes", ex.getMessage());
+        verify(equipoRepository, never()).save(any());
     }
 
     @Test

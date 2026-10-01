@@ -14,6 +14,8 @@ public interface UsuarioRepository {
 
     Optional<Usuario> findByUsuario(String usuario);
 
+    Optional<Usuario> findByNumeroIdentificacion(String numeroIdentificacion);
+
     List<Usuario> findAll();
 
     List<Usuario> findByRol(Rol rol);
