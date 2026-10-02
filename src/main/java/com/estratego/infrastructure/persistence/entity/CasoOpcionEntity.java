@@ -28,4 +28,8 @@ public class CasoOpcionEntity {
 
     @Column(name = "resultado", nullable = false, columnDefinition = "text")
     private String resultado;
+
+    /** ImpactoOpcion serializado como JSON (null si la opción no tiene impacto). */
+    @Column(name = "impacto", columnDefinition = "text")
+    private String impacto;
 }

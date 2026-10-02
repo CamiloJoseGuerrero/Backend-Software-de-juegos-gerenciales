@@ -3,6 +3,7 @@ package com.estratego.application.usecase;
 import com.estratego.application.dto.docente.*;
 import com.estratego.domain.model.caso.*;
 import com.estratego.domain.model.empresa.Empresa;
+import com.estratego.domain.model.financiero.EstadoFinanciero;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.*;
@@ -162,6 +163,12 @@ public class CasoService {
             throw new IllegalArgumentException(
                     "La partida no puede terminar después de la fecha de fin de la simulación");
         }
+        EstadoFinanciero ef = r.getFinanciero().aEstadoFinanciero();
+        if (!ef.cuadra()) {
+            throw new IllegalArgumentException(String.format(
+                    "El balance no cuadra: activo total %s, pasivo + patrimonio %s",
+                    ef.activoTotal().toPlainString(), ef.pasivoTotal().add(ef.patrimonio()).toPlainString()));
+        }
     }
 
     private void validarSimulacionEditable(Simulacion simulacion) {
@@ -177,13 +184,13 @@ public class CasoService {
         c.setTipo(r.getTipo());
         c.setMision(r.getMision());
         c.setVision(r.getVision());
-        c.setActivoTotal(r.getFinanciero().getActivoTotal());
-        c.setPasivoTotal(r.getFinanciero().getPasivoTotal());
-        c.setPatrimonio(r.getFinanciero().getPatrimonio());
-        c.setUtilidadNeta(r.getFinanciero().getUtilidadNeta());
-        c.setVentasNetas(r.getFinanciero().getVentasNetas());
-        c.setCostoVentas(r.getFinanciero().getCostoVentas());
-        c.setGastosOperativos(r.getFinanciero().getGastosOperativos());
+        // El backend es la fuente de verdad: los totales se calculan de las partidas
+        EstadoFinanciero ef = r.getFinanciero().aEstadoFinanciero();
+        c.setFinanciero(ef);
+        c.setActivoTotal(ef.activoTotal());
+        c.setPasivoTotal(ef.pasivoTotal());
+        c.setPatrimonio(ef.patrimonio());
+        c.setUtilidadNeta(ef.utilidadNeta());
         c.setPenalizacionMin(r.getPenalizacionMin());
         c.setPenalizacionMax(r.getPenalizacionMax());
         c.setFechaVisualizacion(r.getFechaVisualizacion());
@@ -195,7 +202,8 @@ public class CasoService {
         List<OpcionCaso> opciones = new ArrayList<>();
         int orden = 1;
         for (var o : r.getOpciones()) {
-            opciones.add(new OpcionCaso(null, orden++, o.getOpcion().trim(), o.getResultado().trim()));
+            opciones.add(new OpcionCaso(null, orden++, o.getOpcion().trim(), o.getResultado().trim(),
+                    o.getImpacto() != null ? o.getImpacto().aDominio() : null));
         }
         c.setOpciones(opciones);
     }
@@ -229,13 +237,13 @@ public class CasoService {
         return new CasoResponse(
                 c.getId(), c.getIdSimulacion(),
                 c.getNombreEmpresa(), c.getTipo(), c.getEstado(), c.getMision(), c.getVision(),
-                new FinancieroCaso(c.getActivoTotal(), c.getPasivoTotal(), c.getPatrimonio(), c.getUtilidadNeta(),
-                        c.getVentasNetas(), c.getCostoVentas(), c.getGastosOperativos()),
+                FinancieroCaso.de(c),
                 c.getPenalizacionMin(), c.getPenalizacionMax(),
                 c.getFechaVisualizacion(), c.getFechaInicio(), c.getFechaFin(),
                 c.getAsignacionEquipos(),
                 c.getOpciones().stream()
-                        .map(o -> new OpcionCasoResponse(o.getId(), o.getOrden(), o.getOpcion(), o.getResultado()))
+                        .map(o -> new OpcionCasoResponse(o.getId(), o.getOrden(), o.getOpcion(), o.getResultado(),
+                                o.getImpacto()))
                         .toList()
         );
     }

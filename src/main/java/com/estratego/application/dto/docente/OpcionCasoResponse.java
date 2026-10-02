@@ -1,5 +1,6 @@
 package com.estratego.application.dto.docente;
 
+import com.estratego.domain.model.caso.ImpactoOpcion;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,4 +14,5 @@ public class OpcionCasoResponse {
     private Integer orden;
     private String opcion;
     private String resultado;
+    private ImpactoOpcion impacto;
 }

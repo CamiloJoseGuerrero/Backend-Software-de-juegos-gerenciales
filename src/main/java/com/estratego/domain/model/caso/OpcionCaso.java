@@ -15,4 +15,10 @@ public class OpcionCaso {
     private String opcion;
     /** Nombre literal del cliente: "Resultado". */
     private String resultado;
+    /** Efecto financiero (opcional). */
+    private ImpactoOpcion impacto;
+
+    public OpcionCaso(Long id, Integer orden, String opcion, String resultado) {
+        this(id, orden, opcion, resultado, null);
+    }
 }

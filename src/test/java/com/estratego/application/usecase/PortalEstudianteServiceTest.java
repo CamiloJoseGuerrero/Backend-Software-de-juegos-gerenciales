@@ -66,7 +66,7 @@ class PortalEstudianteServiceTest {
     private Caso caso(Long id, LocalDateTime visualizacion, LocalDateTime inicio, LocalDateTime fin) {
         return new Caso(id, SIM_ID, "TextilAndes", null, null, null,
                 BigDecimal.TEN, BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ONE,
-                BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE,
+                null,
                 BigDecimal.ONE, BigDecimal.TEN, visualizacion, inicio, fin,
                 List.of(new OpcionCaso(1L, 1, "Ampliar", "Resultado secreto")),
                 EstadoCaso.ACTIVO, AsignacionEquipos.MANUAL);
@@ -251,7 +251,7 @@ class PortalEstudianteServiceTest {
     }
 
     @Test
-    void casoActualSinFiltroPrefiereElQuePuedeDecidir() {
+    void casoActualSinFiltroPrefiereLaPartidaEnCurso() {
         participaEnDosSimulaciones();
         LocalDateTime ahora = LocalDateTime.now();
         // Sim 10 (aparece primero): caso ya terminado. Sim 11: caso en partida.
@@ -267,6 +267,26 @@ class PortalEstudianteServiceTest {
         assertEquals(31L, r.getCaso().getId());
         assertEquals(SIM2_ID, r.getIdSimulacion());
         assertTrue(r.isPuedeDecidir());
+    }
+
+    @Test
+    void casoActualSinFiltroNoCambiaDeSimulacionDespuesDeDecidir() {
+        participaEnDosSimulaciones();
+        LocalDateTime ahora = LocalDateTime.now();
+        // Las dos con la partida en curso; en la 10 (la más reciente) la empresa ya decidió
+        Caso decidido = casoDe(30L, SIM_ID, ahora.minusHours(1), ahora.plusHours(1));
+        Caso pendiente = casoDe(31L, SIM2_ID, ahora.minusHours(1), ahora.plusHours(1));
+        when(casoRepository.findActivoBySimulacion(SIM_ID)).thenReturn(Optional.of(decidido));
+        when(casoRepository.findActivoBySimulacion(SIM2_ID)).thenReturn(Optional.of(pendiente));
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(30L, EMPRESA_ID)).thenReturn(Optional.of(
+                new DecisionCaso(1L, 30L, EMPRESA_ID, 1L, ESTUDIANTE_ID, ahora)));
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(31L, EMPRESA2_ID)).thenReturn(Optional.empty());
+
+        var r = service.casoActual(CORREO, null).orElseThrow();
+
+        assertEquals(30L, r.getCaso().getId());
+        assertFalse(r.isPuedeDecidir());
+        assertNotNull(r.getDecision());
     }
 
     @Test

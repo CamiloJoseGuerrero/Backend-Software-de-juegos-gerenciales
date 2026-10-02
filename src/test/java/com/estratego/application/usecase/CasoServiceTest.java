@@ -1,7 +1,11 @@
 package com.estratego.application.usecase;
 
+import com.estratego.domain.model.caso.TipoImpacto;
+
 import com.estratego.application.dto.docente.CasoRequest;
 import com.estratego.application.dto.docente.FinancieroCaso;
+import com.estratego.application.dto.docente.ImpactoDriverRequest;
+import com.estratego.application.dto.docente.ImpactoOpcionRequest;
 import com.estratego.application.dto.docente.OpcionCasoRequest;
 import com.estratego.domain.model.caso.Caso;
 import com.estratego.domain.model.caso.EstadoCaso;
@@ -60,13 +64,47 @@ class CasoServiceTest {
                 INICIO_SIM.plusDays(30), EstadoSimulacion.BORRADOR);
     }
 
+    /**
+     * Activo 1.000.000 = Pasivo 400.000 + Patrimonio 600.000
+     * (capital 400.000 + retenidas 100.000 + utilidad neta 100.000).
+     */
+    private FinancieroCaso financieroValido() {
+        FinancieroCaso f = new FinancieroCaso();
+        f.setEfectivo(new BigDecimal("200000"));
+        f.setCuentasPorCobrar(new BigDecimal("150000"));
+        f.setInventarios(new BigDecimal("250000"));
+        f.setPropiedadPlantaEquipo(new BigDecimal("350000"));
+        f.setActivosIntangibles(new BigDecimal("50000"));
+        f.setCuentasPorPagar(new BigDecimal("150000"));
+        f.setObligacionesFinancierasCortoPlazo(new BigDecimal("100000"));
+        f.setObligacionesFinancierasLargoPlazo(new BigDecimal("150000"));
+        f.setCapitalSocial(new BigDecimal("400000"));
+        f.setUtilidadesRetenidas(new BigDecimal("100000"));
+        f.setVentasNetas(new BigDecimal("800000"));
+        f.setCostoVentas(new BigDecimal("500000"));
+        f.setGastosAdministracion(new BigDecimal("80000"));
+        f.setGastosVentas(new BigDecimal("60000"));
+        f.setGastosFinancieros(new BigDecimal("20000"));
+        f.setImpuestoRenta(new BigDecimal("40000"));
+        f.setFlujoOperativo(new BigDecimal("120000"));
+        f.setFlujoInversion(new BigDecimal("-80000"));
+        f.setFlujoFinanciacion(new BigDecimal("-20000"));
+        return f;
+    }
+
+    private void guardarDevuelveConId() {
+        when(casoRepository.save(any(Caso.class))).thenAnswer(inv -> {
+            Caso c = inv.getArgument(0);
+            c.setId(1L);
+            return c;
+        });
+    }
+
     private CasoRequest requestValido() {
         LocalDateTime inicio = INICIO_SIM.atTime(8, 0);
         return new CasoRequest(
                 null, "TextilAndes S.A.", "Manufactura", "Vestir a Colombia", "Líder regional en 2030",
-                new FinancieroCaso(new BigDecimal("1000000"), new BigDecimal("400000"),
-                        new BigDecimal("600000"), new BigDecimal("50000"),
-                        new BigDecimal("800000"), new BigDecimal("500000"), new BigDecimal("200000")),
+                financieroValido(),
                 new BigDecimal("2"), new BigDecimal("8"),
                 inicio.minusHours(2), inicio, inicio.plusHours(2),
                 null,
@@ -98,10 +136,58 @@ class CasoServiceTest {
         assertEquals(2, r.getOpciones().get(1).getOrden());
         assertEquals(EstadoCaso.BORRADOR, r.getEstado());
         assertEquals(com.estratego.domain.model.caso.AsignacionEquipos.MANUAL, r.getAsignacionEquipos());
-        assertEquals(new BigDecimal("600000"), r.getFinanciero().getPatrimonio());
+        assertEquals(0, new BigDecimal("600000").compareTo(r.getFinanciero().getPatrimonio()));
+        assertEquals(0, new BigDecimal("1000000").compareTo(r.getFinanciero().getActivoTotal()));
+        assertEquals(0, new BigDecimal("400000").compareTo(r.getFinanciero().getPasivoTotal()));
+        assertEquals(0, new BigDecimal("100000").compareTo(r.getFinanciero().getUtilidadNeta()));
         assertEquals(new BigDecimal("800000"), r.getFinanciero().getVentasNetas());
-        assertEquals(new BigDecimal("500000"), r.getFinanciero().getCostoVentas());
-        assertEquals(new BigDecimal("200000"), r.getFinanciero().getGastosOperativos());
+        assertEquals(new BigDecimal("-80000"), r.getFinanciero().getFlujoInversion());
+    }
+
+    @Test
+    void losTotalesLosCalculaElBackendAunqueElClienteMandeOtros() {
+        simulacionValida();
+        guardarDevuelveConId();
+        CasoRequest req = requestValido();
+        req.getFinanciero().setActivoTotal(new BigDecimal("1"));
+        req.getFinanciero().setUtilidadNeta(new BigDecimal("999"));
+
+        var r = casoService.crear(SIMULACION_ID, req, CORREO_DOCENTE);
+
+        assertEquals(0, new BigDecimal("1000000").compareTo(r.getFinanciero().getActivoTotal()));
+        assertEquals(0, new BigDecimal("100000").compareTo(r.getFinanciero().getUtilidadNeta()));
+    }
+
+    @Test
+    void rechazaBalanceQueNoCuadra() {
+        simulacionValida();
+        CasoRequest req = requestValido();
+        req.getFinanciero().setEfectivo(new BigDecimal("250000")); // activo sube 50.000
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> casoService.crear(SIMULACION_ID, req, CORREO_DOCENTE));
+        assertEquals("El balance no cuadra: activo total 1050000, pasivo + patrimonio 1000000", ex.getMessage());
+        verify(casoRepository, never()).save(any());
+    }
+
+    @Test
+    void guardaYDevuelveElImpactoDeLasOpciones() {
+        simulacionValida();
+        guardarDevuelveConId();
+        CasoRequest req = requestValido();
+        ImpactoOpcionRequest impacto = new ImpactoOpcionRequest();
+        impacto.setVentasNetas(new ImpactoDriverRequest(TipoImpacto.PORCENTAJE, new BigDecimal("15")));
+        impacto.setCostoVentas(new ImpactoDriverRequest(TipoImpacto.MONTO, new BigDecimal("-20000")));
+        req.getOpciones().get(0).setImpacto(impacto);
+
+        var r = casoService.crear(SIMULACION_ID, req, CORREO_DOCENTE);
+
+        var i = r.getOpciones().get(0).getImpacto();
+        assertEquals(TipoImpacto.PORCENTAJE, i.ventasNetas().tipo());
+        assertEquals(new BigDecimal("15"), i.ventasNetas().valor());
+        assertEquals(new BigDecimal("-20000"), i.costoVentas().valor());
+        assertNull(i.gastosVentas());
+        assertNull(r.getOpciones().get(1).getImpacto());
     }
 
     @Test

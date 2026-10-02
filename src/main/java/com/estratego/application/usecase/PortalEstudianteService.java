@@ -101,13 +101,14 @@ public class PortalEstudianteService {
      * El caso ACTIVO y visible del estudiante. Vacío si no hay ninguno.
      * <p>
      * Con {@code idSimulacion} se limita a esa simulación. Sin él, si el estudiante está en
-     * varias simulaciones con caso activo, elige por prioridad:
+     * varias simulaciones con caso activo, elige por la fase del caso:
      * <ol>
-     *   <li>un caso que puede decidir ahora (líder, en partida, sin decisión),</li>
-     *   <li>un caso con la partida en curso,</li>
+     *   <li>partida en curso (si hay varias: la simulación más reciente),</li>
      *   <li>el próximo caso por empezar (el de inicio más cercano),</li>
      *   <li>el caso terminado más reciente.</li>
      * </ol>
+     * Decidir no cambia la elección: depende solo de fechas, para que el estudiante
+     * siga viendo el caso en el que acaba de decidir.
      */
     public Optional<CasoActualResponse> casoActual(String correo, Long idSimulacion) {
         LocalDateTime ahora = LocalDateTime.now();
@@ -137,25 +138,28 @@ public class PortalEstudianteService {
                     toResponse(caso, ahora), decision));
         }
 
+        // min() conserva el primero en empate: las participaciones vienen de la simulación más reciente
         return candidatos.stream().min(prioridadCasoActual());
     }
 
     /** Orden de {@link #casoActual}: menor = más relevante para el estudiante. */
     private static Comparator<CasoActualResponse> prioridadCasoActual() {
-        Comparator<CasoActualResponse> porGrupo = Comparator.comparingInt(r -> {
-            if (r.isPuedeDecidir()) return 0;
-            CasoEstudianteResponse c = r.getCaso();
-            if (c.isPartidaIniciada() && !c.isPartidaFinalizada()) return 1;
-            if (!c.isPartidaIniciada()) return 2;
-            return 3;
+        Comparator<CasoActualResponse> porFase = Comparator.comparingInt(PortalEstudianteService::fase);
+        // Dentro de la fase: en curso -> empate (gana la simulación más reciente);
+        // próximos -> el que empieza antes; terminados -> el que terminó más tarde
+        return porFase.thenComparing((a, b) -> switch (fase(a)) {
+            case 1 -> a.getCaso().getFechaInicioPartida().compareTo(b.getCaso().getFechaInicioPartida());
+            case 2 -> b.getCaso().getFechaFinPartida().compareTo(a.getCaso().getFechaFinPartida());
+            default -> 0;
         });
-        // Dentro del grupo: próximos -> el que empieza antes; los demás -> el que empezó más tarde
-        return porGrupo.thenComparing((a, b) -> {
-            LocalDateTime ia = a.getCaso().getFechaInicioPartida();
-            LocalDateTime ib = b.getCaso().getFechaInicioPartida();
-            boolean proximos = !a.getCaso().isPartidaIniciada();
-            return proximos ? ia.compareTo(ib) : ib.compareTo(ia);
-        });
+    }
+
+    /** 0 = partida en curso, 1 = próxima, 2 = terminada. */
+    private static int fase(CasoActualResponse r) {
+        CasoEstudianteResponse c = r.getCaso();
+        if (!c.isPartidaIniciada()) return 1;
+        if (!c.isPartidaFinalizada()) return 0;
+        return 2;
     }
 
     /** El líder elige la opción de su empresa. Permanente: no se puede cambiar después. */
@@ -257,6 +261,7 @@ public class PortalEstudianteService {
         String quien = usuarioRepository.findById(d.getIdUsuario()).map(Usuario::getNombre).orElse(null);
         return new DecisionResponse(d.getIdCaso(), d.getIdEmpresa(), d.getIdOpcion(),
                 o != null ? o.getOpcion() : null, o != null ? o.getResultado() : null,
+                o != null ? o.getImpacto() : null,
                 quien, d.getFechaDecision());
     }
 
@@ -272,8 +277,7 @@ public class PortalEstudianteService {
         return new CasoEstudianteResponse(
                 c.getId(), c.getIdSimulacion(),
                 c.getNombreEmpresa(), c.getTipo(), c.getMision(), c.getVision(),
-                new FinancieroCaso(c.getActivoTotal(), c.getPasivoTotal(), c.getPatrimonio(), c.getUtilidadNeta(),
-                        c.getVentasNetas(), c.getCostoVentas(), c.getGastosOperativos()),
+                FinancieroCaso.de(c),
                 c.getPenalizacionMin(), c.getPenalizacionMax(),
                 c.getFechaVisualizacion(), c.getFechaInicio(), c.getFechaFin(),
                 iniciada, finalizada, opciones);

@@ -105,6 +105,9 @@ $idA = $empA.Body.id; $idM = $empM.Body.id
 
 # ---------------------------------------------------------------------
 Write-Host "`n5. Integrantes" -ForegroundColor Cyan
+# María tiene que estar en la lista del docente para probar la regla MONOUSUARIO (y no la de "no es tu estudiante")
+$vm = Api Post "/docente/estudiantes" $tDoc @{ nombre = "María José Castillo"; correo = $ajeno.correo; numeroIdentificacion = $ajeno.cedula }
+Check "María en la lista del docente (vinculada o ya estaba)" ($vm.Status -in 200, 201, 409) "status $($vm.Status) $($vm.Body.message)"
 Esperar (Api Post "/docente/empresas/$idA/integrantes" $tDoc @{ idUsuario = $lider.id; departamento = "COMERCIAL"; esLider = $true }) 201 "agregar líder a Empresa Multi"
 $i2 = Api Post "/docente/empresas/$idA/integrantes" $tDoc @{ idUsuario = $miembro.id }
 Esperar $i2 201 "agregar integrante sin departamento"
@@ -125,13 +128,19 @@ Write-Host "`n6. Casos" -ForegroundColor Cyan
 $caso = @{
     idSimulacion = $idSim; nombre = "TextilAndes S.A."; tipo = "Manufactura"
     mision = "Vestir a Colombia"; vision = "Líder regional en 2030"
-    financiero = @{ activoTotal = 1000000; pasivoTotal = 400000; patrimonio = 600000; utilidadNeta = 50000; ventasNetas = 800000; costoVentas = 500000; gastosOperativos = 200000 }
+    financiero = @{
+        efectivo = 200000; cuentasPorCobrar = 150000; inventarios = 250000; propiedadPlantaEquipo = 350000; activosIntangibles = 50000
+        cuentasPorPagar = 150000; obligacionesFinancierasCortoPlazo = 100000; obligacionesFinancierasLargoPlazo = 150000
+        capitalSocial = 400000; utilidadesRetenidas = 100000
+        ventasNetas = 800000; costoVentas = 500000; gastosAdministracion = 80000; gastosVentas = 60000; gastosFinancieros = 20000; impuestoRenta = 40000
+        flujoOperativo = 120000; flujoInversion = -80000; flujoFinanciacion = -20000 }
     penalizacionMin = 2; penalizacionMax = 8
     fechaVisualizacion = $ahora.AddMinutes(-30).ToString($fmt)
     fechaInicioPartida = $ahora.AddMinutes(-10).ToString($fmt)
     fechaFinPartida    = $ahora.AddHours(2).ToString($fmt)
     asignacionEquipos = "manual"
-    opciones = @(@{ opcion = "Ampliar la planta"; resultado = "Sube la capacidad 20%" },
+    opciones = @(@{ opcion = "Ampliar la planta"; resultado = "Sube la capacidad 20%"
+                    impacto = @{ ventasNetas = @{ tipo = "porcentaje"; valor = 15 }; gastosFinancieros = @{ tipo = "monto"; valor = 30000 } } },
                  @{ opcion = "Reducir costos";    resultado = "Mejora el margen 5%" })
 }
 # Si la prueba corre justo después de medianoche, la partida quedaría antes del inicio de la simulación
@@ -140,6 +149,19 @@ $c = Api Post "/docente/casos" $tDoc $caso
 Esperar $c 201 "crear caso (borrador)"
 $idCaso = $c.Body.id
 Check "estado borrador y 2 opciones" ($c.Body.estado -eq "borrador" -and @($c.Body.opciones).Count -eq 2)
+$f = $c.Body.financiero
+Check "totales calculados: activo 1.000.000, pasivo 400.000, patrimonio 600.000, utilidad 100.000" ($f.activoTotal -eq 1000000 -and $f.pasivoTotal -eq 400000 -and $f.patrimonio -eq 600000 -and $f.utilidadNeta -eq 100000) "activo $($f.activoTotal), pasivo $($f.pasivoTotal), patrimonio $($f.patrimonio), utilidad $($f.utilidadNeta)"
+$imp = $c.Body.opciones[0].impacto
+Check "la opción 1 guarda su impacto" ($imp.ventasNetas.tipo -eq "porcentaje" -and $imp.ventasNetas.valor -eq 15 -and $imp.gastosFinancieros.valor -eq 30000)
+Check "la opción 2 sin impacto" ($null -eq $c.Body.opciones[1].impacto)
+$malo = $caso.Clone(); $malo.financiero = $caso.financiero.Clone(); $malo.financiero.efectivo = 250000
+Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "balance que no cuadra -> 400"
+$malo = $caso.Clone(); $malo.financiero = $caso.financiero.Clone(); $malo.financiero.Remove("impuestoRenta")
+Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "falta una partida -> 400"
+$malo = $caso.Clone(); $malo.opciones = @(@{ opcion = "X"; resultado = "Y"; impacto = @{ ventasNeta = @{ tipo = "monto"; valor = 1 } } })
+Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "impacto con un rubro mal escrito -> 400"
+$malo = $caso.Clone(); $malo.opciones = @(@{ opcion = "X"; resultado = "Y"; impacto = @{ costoVentas = @{ tipo = "porcentaje"; valor = -150 } } })
+Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "impacto en porcentaje < -100 -> 400"
 $malo = $caso.Clone(); $malo.penalizacionMin = 9
 Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "penalización mínima > máxima -> 400"
 $malo = $caso.Clone(); $malo.opciones = @()
@@ -172,7 +194,8 @@ Esperar (Api Get "/docente/simulaciones" $tLider) 403 "token de estudiante en /d
 
 $ca = Api Get "/estudiante/caso-actual?idSimulacion=$idSim" $tLider
 Check "caso actual del líder: puede decidir" ($ca.Status -eq 200 -and $ca.Body.puedeDecidir -and $null -eq $ca.Body.decision) "status $($ca.Status)"
-Check "las opciones no traen resultado" ($ca.Body.caso.opciones.Count -eq 2 -and -not ($ca.Body.caso.opciones[0].PSObject.Properties.Name -contains "resultado"))
+Check "las opciones no traen resultado ni impacto" ($ca.Body.caso.opciones.Count -eq 2 -and -not ($ca.Body.caso.opciones[0].PSObject.Properties.Name -contains "resultado") -and -not ($ca.Body.caso.opciones[0].PSObject.Properties.Name -contains "impacto"))
+Check "el estudiante ve el financiero completo" ($ca.Body.caso.financiero.activoTotal -eq 1000000 -and $ca.Body.caso.financiero.flujoInversion -eq -80000)
 $cm = Api Get "/estudiante/caso-actual?idSimulacion=$idSim" $tMiembro
 Check "el no líder no puede decidir" ($cm.Status -eq 200 -and -not $cm.Body.puedeDecidir)
 
@@ -182,6 +205,7 @@ Esperar (Api Post "/estudiante/decision" $tLider @{ idCaso = $idCaso; idOpcion =
 $d = Api Post "/estudiante/decision" $tLider @{ idCaso = $idCaso; idOpcion = $idOpcion }
 Esperar $d 201 "el líder decide"
 Check "la respuesta trae el resultado" ($d.Body.resultado -eq "Sube la capacidad 20%")
+Check "y el impacto de la opción elegida" ($d.Body.impacto.ventasNetas.valor -eq 15)
 Esperar (Api Post "/estudiante/decision" $tLider @{ idCaso = $idCaso; idOpcion = $ca.Body.caso.opciones[1].id }) 400 "decidir otra vez -> 400 (permanente)"
 $cm = Api Get "/estudiante/caso-actual?idSimulacion=$idSim" $tMiembro
 Check "el compañero ve la decisión y su resultado" ($cm.Body.decision -and $cm.Body.decision.resultado -eq "Sube la capacidad 20%")

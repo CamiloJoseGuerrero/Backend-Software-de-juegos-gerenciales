@@ -157,7 +157,11 @@ Esperar (Api Post "/docente/empresas/$empX/integrantes" $tB @{ idUsuario = $idNu
 Write-Host "`n7. caso-actual con dos simulaciones" -ForegroundColor Cyan
 function NuevoCaso($idSim, $nombre, $vis, $ini, $fin) {
     @{ idSimulacion = $idSim; nombre = $nombre; tipo = "Prueba"; mision = "m"; vision = "v"
-       financiero = @{ activoTotal = 1000; pasivoTotal = 400; patrimonio = 600; utilidadNeta = 50; ventasNetas = 800; costoVentas = 500; gastosOperativos = 200 }
+       financiero = @{ efectivo = 200; cuentasPorCobrar = 150; inventarios = 250; propiedadPlantaEquipo = 350; activosIntangibles = 50
+                       cuentasPorPagar = 150; obligacionesFinancierasCortoPlazo = 100; obligacionesFinancierasLargoPlazo = 150
+                       capitalSocial = 400; utilidadesRetenidas = 100
+                       ventasNetas = 800; costoVentas = 500; gastosAdministracion = 80; gastosVentas = 60; gastosFinancieros = 20; impuestoRenta = 40
+                       flujoOperativo = 120; flujoInversion = -80; flujoFinanciacion = -20 }
        penalizacionMin = 1; penalizacionMax = 5
        fechaVisualizacion = $vis.ToString($fmt); fechaInicioPartida = $ini.ToString($fmt); fechaFinPartida = $fin.ToString($fmt)
        opciones = @(@{ opcion = "A"; resultado = "ra" }, @{ opcion = "B"; resultado = "rb" }) }

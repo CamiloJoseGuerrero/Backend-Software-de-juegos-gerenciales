@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.estratego.domain.model.financiero.EstadoFinanciero;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -29,10 +31,8 @@ public class Caso {
     private BigDecimal patrimonio;
     private BigDecimal utilidadNeta;
 
-    // Estado de Resultados (null en casos creados antes de 2026-10-02)
-    private BigDecimal ventasNetas;
-    private BigDecimal costoVentas;
-    private BigDecimal gastosOperativos;
+    // Partidas de las que salen los totales de arriba (null en casos anteriores a 2026-10-02)
+    private EstadoFinanciero financiero;
 
     // Penalización por no decidir (%)
     private BigDecimal penalizacionMin;

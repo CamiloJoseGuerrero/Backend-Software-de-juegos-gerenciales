@@ -1,5 +1,6 @@
 package com.estratego.application.dto.estudiante;
 
+import com.estratego.domain.model.caso.ImpactoOpcion;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,6 +18,8 @@ public class DecisionResponse {
     private Long idOpcion;
     private String opcion;
     private String resultado;
+    /** Efecto financiero de la opción elegida (solo se ve después de decidir). */
+    private ImpactoOpcion impacto;
     private String decididaPor;
     private LocalDateTime fechaDecision;
 }
