@@ -27,4 +27,19 @@ public class FinancieroCaso {
 
     @NotNull(message = "La utilidad neta es obligatoria")
     private BigDecimal utilidadNeta;
+
+    // Estado de Resultados: utilidad bruta = ventasNetas - costoVentas;
+    // utilidad operativa = bruta - gastosOperativos (las calcula el frontend)
+
+    @NotNull(message = "Las ventas netas son obligatorias")
+    @DecimalMin(value = "0", message = "Las ventas netas no pueden ser negativas")
+    private BigDecimal ventasNetas;
+
+    @NotNull(message = "El costo de ventas es obligatorio")
+    @DecimalMin(value = "0", message = "El costo de ventas no puede ser negativo")
+    private BigDecimal costoVentas;
+
+    @NotNull(message = "Los gastos operativos son obligatorios")
+    @DecimalMin(value = "0", message = "Los gastos operativos no pueden ser negativos")
+    private BigDecimal gastosOperativos;
 }

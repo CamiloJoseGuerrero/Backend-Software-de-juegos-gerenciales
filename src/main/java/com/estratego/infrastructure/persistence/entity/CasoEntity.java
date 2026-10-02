@@ -50,6 +50,16 @@ public class CasoEntity {
     @Column(name = "utilidad_neta", nullable = false, precision = 18, scale = 2)
     private BigDecimal utilidadNeta;
 
+    // Requiere db/migraciones/2026-10-02_caso_estado_resultados.sql
+    @Column(name = "ventas_netas", precision = 18, scale = 2)
+    private BigDecimal ventasNetas;
+
+    @Column(name = "costo_ventas", precision = 18, scale = 2)
+    private BigDecimal costoVentas;
+
+    @Column(name = "gastos_operativos", precision = 18, scale = 2)
+    private BigDecimal gastosOperativos;
+
     @Column(name = "penalizacion_min", nullable = false, precision = 5, scale = 2)
     private BigDecimal penalizacionMin;
 

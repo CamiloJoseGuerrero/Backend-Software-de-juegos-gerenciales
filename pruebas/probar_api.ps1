@@ -125,7 +125,7 @@ Write-Host "`n6. Casos" -ForegroundColor Cyan
 $caso = @{
     idSimulacion = $idSim; nombre = "TextilAndes S.A."; tipo = "Manufactura"
     mision = "Vestir a Colombia"; vision = "Líder regional en 2030"
-    financiero = @{ activoTotal = 1000000; pasivoTotal = 400000; patrimonio = 600000; utilidadNeta = 50000 }
+    financiero = @{ activoTotal = 1000000; pasivoTotal = 400000; patrimonio = 600000; utilidadNeta = 50000; ventasNetas = 800000; costoVentas = 500000; gastosOperativos = 200000 }
     penalizacionMin = 2; penalizacionMax = 8
     fechaVisualizacion = $ahora.AddMinutes(-30).ToString($fmt)
     fechaInicioPartida = $ahora.AddMinutes(-10).ToString($fmt)

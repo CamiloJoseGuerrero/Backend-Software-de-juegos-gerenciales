@@ -66,6 +66,7 @@ class PortalEstudianteServiceTest {
     private Caso caso(Long id, LocalDateTime visualizacion, LocalDateTime inicio, LocalDateTime fin) {
         return new Caso(id, SIM_ID, "TextilAndes", null, null, null,
                 BigDecimal.TEN, BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ONE,
+                BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE,
                 BigDecimal.ONE, BigDecimal.TEN, visualizacion, inicio, fin,
                 List.of(new OpcionCaso(1L, 1, "Ampliar", "Resultado secreto")),
                 EstadoCaso.ACTIVO, AsignacionEquipos.MANUAL);

@@ -29,6 +29,11 @@ public class Caso {
     private BigDecimal patrimonio;
     private BigDecimal utilidadNeta;
 
+    // Estado de Resultados (null en casos creados antes de 2026-10-02)
+    private BigDecimal ventasNetas;
+    private BigDecimal costoVentas;
+    private BigDecimal gastosOperativos;
+
     // Penalización por no decidir (%)
     private BigDecimal penalizacionMin;
     private BigDecimal penalizacionMax;

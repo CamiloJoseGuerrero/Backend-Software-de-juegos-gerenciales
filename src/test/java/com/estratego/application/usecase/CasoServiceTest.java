@@ -65,7 +65,8 @@ class CasoServiceTest {
         return new CasoRequest(
                 null, "TextilAndes S.A.", "Manufactura", "Vestir a Colombia", "Líder regional en 2030",
                 new FinancieroCaso(new BigDecimal("1000000"), new BigDecimal("400000"),
-                        new BigDecimal("600000"), new BigDecimal("50000")),
+                        new BigDecimal("600000"), new BigDecimal("50000"),
+                        new BigDecimal("800000"), new BigDecimal("500000"), new BigDecimal("200000")),
                 new BigDecimal("2"), new BigDecimal("8"),
                 inicio.minusHours(2), inicio, inicio.plusHours(2),
                 null,
@@ -98,6 +99,9 @@ class CasoServiceTest {
         assertEquals(EstadoCaso.BORRADOR, r.getEstado());
         assertEquals(com.estratego.domain.model.caso.AsignacionEquipos.MANUAL, r.getAsignacionEquipos());
         assertEquals(new BigDecimal("600000"), r.getFinanciero().getPatrimonio());
+        assertEquals(new BigDecimal("800000"), r.getFinanciero().getVentasNetas());
+        assertEquals(new BigDecimal("500000"), r.getFinanciero().getCostoVentas());
+        assertEquals(new BigDecimal("200000"), r.getFinanciero().getGastosOperativos());
     }
 
     @Test

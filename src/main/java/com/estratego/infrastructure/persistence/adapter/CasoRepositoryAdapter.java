@@ -86,6 +86,7 @@ public class CasoRepositoryAdapter implements CasoRepository {
                 e.getId(), e.getIdSimulacion(),
                 e.getNombreEmpresa(), e.getMision(), e.getVision(), e.getTipo(),
                 e.getActivoTotal(), e.getPasivoTotal(), e.getPatrimonio(), e.getUtilidadNeta(),
+                e.getVentasNetas(), e.getCostoVentas(), e.getGastosOperativos(),
                 e.getPenalizacionMin(), e.getPenalizacionMax(),
                 e.getFechaVisualizacion(), e.getFechaInicio(), e.getFechaFin(),
                 new ArrayList<>(opciones),
@@ -98,6 +99,7 @@ public class CasoRepositoryAdapter implements CasoRepository {
                 c.getId(), c.getIdSimulacion(),
                 c.getNombreEmpresa(), c.getMision(), c.getVision(), c.getTipo(),
                 c.getActivoTotal(), c.getPasivoTotal(), c.getPatrimonio(), c.getUtilidadNeta(),
+                c.getVentasNetas(), c.getCostoVentas(), c.getGastosOperativos(),
                 c.getPenalizacionMin(), c.getPenalizacionMax(),
                 c.getFechaVisualizacion(), c.getFechaInicio(), c.getFechaFin(),
                 c.getEstado(), c.getAsignacionEquipos()

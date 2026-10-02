@@ -181,6 +181,9 @@ public class CasoService {
         c.setPasivoTotal(r.getFinanciero().getPasivoTotal());
         c.setPatrimonio(r.getFinanciero().getPatrimonio());
         c.setUtilidadNeta(r.getFinanciero().getUtilidadNeta());
+        c.setVentasNetas(r.getFinanciero().getVentasNetas());
+        c.setCostoVentas(r.getFinanciero().getCostoVentas());
+        c.setGastosOperativos(r.getFinanciero().getGastosOperativos());
         c.setPenalizacionMin(r.getPenalizacionMin());
         c.setPenalizacionMax(r.getPenalizacionMax());
         c.setFechaVisualizacion(r.getFechaVisualizacion());
@@ -226,7 +229,8 @@ public class CasoService {
         return new CasoResponse(
                 c.getId(), c.getIdSimulacion(),
                 c.getNombreEmpresa(), c.getTipo(), c.getEstado(), c.getMision(), c.getVision(),
-                new FinancieroCaso(c.getActivoTotal(), c.getPasivoTotal(), c.getPatrimonio(), c.getUtilidadNeta()),
+                new FinancieroCaso(c.getActivoTotal(), c.getPasivoTotal(), c.getPatrimonio(), c.getUtilidadNeta(),
+                        c.getVentasNetas(), c.getCostoVentas(), c.getGastosOperativos()),
                 c.getPenalizacionMin(), c.getPenalizacionMax(),
                 c.getFechaVisualizacion(), c.getFechaInicio(), c.getFechaFin(),
                 c.getAsignacionEquipos(),

@@ -272,7 +272,8 @@ public class PortalEstudianteService {
         return new CasoEstudianteResponse(
                 c.getId(), c.getIdSimulacion(),
                 c.getNombreEmpresa(), c.getTipo(), c.getMision(), c.getVision(),
-                new FinancieroCaso(c.getActivoTotal(), c.getPasivoTotal(), c.getPatrimonio(), c.getUtilidadNeta()),
+                new FinancieroCaso(c.getActivoTotal(), c.getPasivoTotal(), c.getPatrimonio(), c.getUtilidadNeta(),
+                        c.getVentasNetas(), c.getCostoVentas(), c.getGastosOperativos()),
                 c.getPenalizacionMin(), c.getPenalizacionMax(),
                 c.getFechaVisualizacion(), c.getFechaInicio(), c.getFechaFin(),
                 iniciada, finalizada, opciones);
