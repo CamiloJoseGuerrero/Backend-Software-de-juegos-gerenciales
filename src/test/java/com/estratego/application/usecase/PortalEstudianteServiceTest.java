@@ -220,6 +220,85 @@ class PortalEstudianteServiceTest {
         assertEquals("Resultado secreto", r.getDecision().getResultado());
     }
 
+    // ---- caso actual con varias simulaciones ----
+
+    private static final Long SIM2_ID = 11L;
+    private static final Long EMPRESA2_ID = 6L;
+
+    /**
+     * Ana está en dos simulaciones: la 10 (más reciente, aparece primero) y la 11.
+     * Es líder en ambas.
+     */
+    private void participaEnDosSimulaciones() {
+        Simulacion sim2 = new Simulacion(SIM2_ID, 99L, "Otra simulación", LocalDate.now().minusDays(10),
+                LocalDate.now().plusDays(30), EstadoSimulacion.EN_CURSO);
+        Empresa empresa2 = new Empresa(EMPRESA2_ID, SIM2_ID, "EMP-002", "AgroSur", null,
+                TipoJugador.MULTIUSUARIO, EstadoEmpresa.ACTIVA);
+        when(integranteRepository.findByIdUsuario(ESTUDIANTE_ID)).thenReturn(List.of(
+                new Integrante(1L, EMPRESA_ID, ESTUDIANTE_ID, Departamento.COMERCIAL, true),
+                new Integrante(2L, EMPRESA2_ID, ESTUDIANTE_ID, Departamento.COMERCIAL, true)));
+        when(empresaRepository.findById(EMPRESA_ID)).thenReturn(Optional.of(empresa));
+        when(empresaRepository.findById(EMPRESA2_ID)).thenReturn(Optional.of(empresa2));
+        when(simulacionRepository.findById(SIM_ID)).thenReturn(Optional.of(simulacion));
+        when(simulacionRepository.findById(SIM2_ID)).thenReturn(Optional.of(sim2));
+    }
+
+    private Caso casoDe(Long id, Long idSimulacion, LocalDateTime inicio, LocalDateTime fin) {
+        Caso c = caso(id, inicio.minusDays(1), inicio, fin);
+        c.setIdSimulacion(idSimulacion);
+        return c;
+    }
+
+    @Test
+    void casoActualSinFiltroPrefiereElQuePuedeDecidir() {
+        participaEnDosSimulaciones();
+        LocalDateTime ahora = LocalDateTime.now();
+        // Sim 10 (aparece primero): caso ya terminado. Sim 11: caso en partida.
+        Caso terminado = casoDe(30L, SIM_ID, ahora.minusDays(3), ahora.minusDays(2));
+        Caso enPartida = casoDe(31L, SIM2_ID, ahora.minusHours(1), ahora.plusHours(1));
+        when(casoRepository.findActivoBySimulacion(SIM_ID)).thenReturn(Optional.of(terminado));
+        when(casoRepository.findActivoBySimulacion(SIM2_ID)).thenReturn(Optional.of(enPartida));
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(30L, EMPRESA_ID)).thenReturn(Optional.empty());
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(31L, EMPRESA2_ID)).thenReturn(Optional.empty());
+
+        var r = service.casoActual(CORREO, null).orElseThrow();
+
+        assertEquals(31L, r.getCaso().getId());
+        assertEquals(SIM2_ID, r.getIdSimulacion());
+        assertTrue(r.isPuedeDecidir());
+    }
+
+    @Test
+    void casoActualSinFiltroPrefiereElProximoAlTerminado() {
+        participaEnDosSimulaciones();
+        LocalDateTime ahora = LocalDateTime.now();
+        Caso terminado = casoDe(30L, SIM_ID, ahora.minusDays(3), ahora.minusDays(2));
+        Caso proximo = casoDe(31L, SIM2_ID, ahora.plusHours(5), ahora.plusHours(8));
+        when(casoRepository.findActivoBySimulacion(SIM_ID)).thenReturn(Optional.of(terminado));
+        when(casoRepository.findActivoBySimulacion(SIM2_ID)).thenReturn(Optional.of(proximo));
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(30L, EMPRESA_ID)).thenReturn(Optional.empty());
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(31L, EMPRESA2_ID)).thenReturn(Optional.empty());
+
+        var r = service.casoActual(CORREO, null).orElseThrow();
+
+        assertEquals(31L, r.getCaso().getId());
+        assertFalse(r.isPuedeDecidir());
+    }
+
+    @Test
+    void casoActualConIdSimulacionRespetaElFiltro() {
+        participaEnDosSimulaciones();
+        LocalDateTime ahora = LocalDateTime.now();
+        Caso terminado = casoDe(30L, SIM_ID, ahora.minusDays(3), ahora.minusDays(2));
+        when(casoRepository.findActivoBySimulacion(SIM_ID)).thenReturn(Optional.of(terminado));
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(30L, EMPRESA_ID)).thenReturn(Optional.empty());
+
+        var r = service.casoActual(CORREO, SIM_ID).orElseThrow();
+
+        assertEquals(30L, r.getCaso().getId());
+        verify(casoRepository, never()).findActivoBySimulacion(SIM2_ID);
+    }
+
     @Test
     void liderDecideYQuedaGuardado() {
         participaComo(true);

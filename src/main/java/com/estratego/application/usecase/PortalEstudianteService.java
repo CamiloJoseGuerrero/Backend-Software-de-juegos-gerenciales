@@ -98,12 +98,21 @@ public class PortalEstudianteService {
     }
 
     /**
-     * El caso ACTIVO y visible de la simulación del estudiante (la más reciente, o la indicada).
-     * Vacío si no hay ninguno.
+     * El caso ACTIVO y visible del estudiante. Vacío si no hay ninguno.
+     * <p>
+     * Con {@code idSimulacion} se limita a esa simulación. Sin él, si el estudiante está en
+     * varias simulaciones con caso activo, elige por prioridad:
+     * <ol>
+     *   <li>un caso que puede decidir ahora (líder, en partida, sin decisión),</li>
+     *   <li>un caso con la partida en curso,</li>
+     *   <li>el próximo caso por empezar (el de inicio más cercano),</li>
+     *   <li>el caso terminado más reciente.</li>
+     * </ol>
      */
     public Optional<CasoActualResponse> casoActual(String correo, Long idSimulacion) {
         LocalDateTime ahora = LocalDateTime.now();
 
+        List<CasoActualResponse> candidatos = new ArrayList<>();
         for (Participacion p : participaciones(resolverUsuarioId(correo))) {
             if (idSimulacion != null && !idSimulacion.equals(p.simulacion().getId())) continue;
 
@@ -121,13 +130,32 @@ public class PortalEstudianteService {
                     && decision == null
                     && enPartida(caso, p.simulacion(), ahora);
 
-            return Optional.of(new CasoActualResponse(
+            candidatos.add(new CasoActualResponse(
                     p.simulacion().getId(), p.simulacion().getNombre(),
                     p.empresa().getId(), p.empresa().getNombre(),
                     p.integrante().isEsLider(), puedeDecidir,
                     toResponse(caso, ahora), decision));
         }
-        return Optional.empty();
+
+        return candidatos.stream().min(prioridadCasoActual());
+    }
+
+    /** Orden de {@link #casoActual}: menor = más relevante para el estudiante. */
+    private static Comparator<CasoActualResponse> prioridadCasoActual() {
+        Comparator<CasoActualResponse> porGrupo = Comparator.comparingInt(r -> {
+            if (r.isPuedeDecidir()) return 0;
+            CasoEstudianteResponse c = r.getCaso();
+            if (c.isPartidaIniciada() && !c.isPartidaFinalizada()) return 1;
+            if (!c.isPartidaIniciada()) return 2;
+            return 3;
+        });
+        // Dentro del grupo: próximos -> el que empieza antes; los demás -> el que empezó más tarde
+        return porGrupo.thenComparing((a, b) -> {
+            LocalDateTime ia = a.getCaso().getFechaInicioPartida();
+            LocalDateTime ib = b.getCaso().getFechaInicioPartida();
+            boolean proximos = !a.getCaso().isPartidaIniciada();
+            return proximos ? ia.compareTo(ib) : ib.compareTo(ia);
+        });
     }
 
     /** El líder elige la opción de su empresa. Permanente: no se puede cambiar después. */
