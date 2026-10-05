@@ -1,8 +1,10 @@
 package com.estratego.presentation.controller;
 
+import com.estratego.application.dto.clasificacion.ClasificacionResponse;
 import com.estratego.application.dto.docente.ActualizarSimulacionRequest;
 import com.estratego.application.dto.docente.CrearSimulacionRequest;
 import com.estratego.application.dto.docente.SimulacionResponse;
+import com.estratego.application.usecase.ClasificacionService;
 import com.estratego.application.usecase.SimulacionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,15 @@ import java.util.List;
 public class SimulacionController {
 
     private final SimulacionService simulacionService;
+    private final ClasificacionService clasificacionService;
+
+    /** Utilidad neta acumulada por empresa (vista previa hasta que la simulación finalice). */
+    @GetMapping("/{id}/clasificacion")
+    public ResponseEntity<ClasificacionResponse> clasificacion(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(clasificacionService.paraDocente(id, authentication.getName()));
+    }
 
     @PostMapping
     public ResponseEntity<SimulacionResponse> crear(

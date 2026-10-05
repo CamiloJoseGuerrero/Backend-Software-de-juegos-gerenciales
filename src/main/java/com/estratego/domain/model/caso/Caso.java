@@ -47,4 +47,7 @@ public class Caso {
 
     private EstadoCaso estado = EstadoCaso.BORRADOR;
     private AsignacionEquipos asignacionEquipos = AsignacionEquipos.MANUAL;
+
+    /** Primera vez que se activó (null = nunca). Solo los casos activados cuentan en la clasificación. */
+    private LocalDateTime activadoEn;
 }

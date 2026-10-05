@@ -77,4 +77,8 @@ public class CasoEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "asignacion_equipos", nullable = false, length = 20)
     private AsignacionEquipos asignacionEquipos;
+
+    // Requiere db/migraciones/2026-10-05_caso_activado_en.sql
+    @Column(name = "activado_en")
+    private LocalDateTime activadoEn;
 }

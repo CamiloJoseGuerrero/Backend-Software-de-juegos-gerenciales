@@ -16,8 +16,8 @@ public class CambiarContrasenaRequest {
 
     @NotBlank(message = "La nueva contraseña es requerida")
     @Pattern(
-        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]).{8,72}$",
-        message = "La contraseña debe tener entre 8 y 72 caracteres, con mayúscula, minúscula, número y símbolo"
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^\\p{L}\\p{N}\\s]).{8,72}$",
+        message = "La contraseña debe tener entre 8 y 72 caracteres, con mayúscula, minúscula, número y símbolo (cualquier carácter que no sea letra, número ni espacio)"
     )
     private String contrasenaNueva;
 }   

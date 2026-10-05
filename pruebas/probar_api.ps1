@@ -220,6 +220,24 @@ Check "Empresa Mono aún no decide" ($filaM -and -not $filaM.decidio)
 Esperar (Api Put "/docente/casos/$idCaso" $tDoc $caso) 400 "editar un caso con decisiones -> 400"
 
 # ---------------------------------------------------------------------
+Write-Host "`n9. Clasificación" -ForegroundColor Cyan
+$cl = Api Get "/docente/simulaciones/$idSim/clasificacion" $tDoc
+Check "con la partida en curso todavía no hay resultados (lista vacía)" ($cl.Status -eq 200 -and $cl.Body.casosConsiderados -eq 0 -and @($cl.Body.clasificacion).Count -eq 0) "status $($cl.Status), casos $($cl.Body.casosConsiderados)"
+Esperar (Api Get "/estudiante/simulaciones/$idSim/clasificacion" $tLider) 400 "el estudiante no la ve antes de finalizar -> 400"
+Esperar (Api Post "/docente/simulaciones/$idSim/iniciar" $tDoc) 200 "iniciar la simulación"
+Esperar (Api Post "/docente/simulaciones/$idSim/finalizar" $tDoc) 200 "finalizar la simulación"
+$cl = Api Get "/docente/simulaciones/$idSim/clasificacion" $tDoc
+$filas = @($cl.Body.clasificacion)
+Check "definitiva, 1 caso y 2 empresas" ($cl.Body.definitiva -and $cl.Body.casosConsiderados -eq 1 -and $filas.Count -eq 2) "casos $($cl.Body.casosConsiderados), filas $($filas.Count)"
+# Multi eligió 'Ampliar la planta': ventas +15 % y gastos financieros +30.000 → 920.000 − 500.000 − 80.000 − 60.000 − 50.000 − 40.000
+Check "1.º Empresa Multi con 190.000 (impacto aplicado)" ($filas[0].nombreEmpresa -eq "Empresa Multi" -and $filas[0].posicion -eq 1 -and $filas[0].utilidadAcumulada -eq 190000) "$($filas[0].nombreEmpresa) $($filas[0].utilidadAcumulada)"
+# Mono no decidió: 100.000 − 8 % (penalización máxima) = 92.000
+Check "2.º Empresa Mono con 92.000 (penalizada 8 %)" ($filas[1].nombreEmpresa -eq "Empresa Mono" -and $filas[1].utilidadAcumulada -eq 92000 -and $filas[1].casosSinDecision -eq 1 -and $filas[1].desglose[0].penalizacionPorcentaje -eq 8) "$($filas[1].nombreEmpresa) $($filas[1].utilidadAcumulada)"
+Check "el desglose trae la opción elegida" ($filas[0].desglose[0].decidio -and $filas[0].desglose[0].opcionElegida -eq "Ampliar la planta" -and $filas[0].desglose[0].nombreCaso -eq "TextilAndes S.A.")
+$ce = Api Get "/estudiante/simulaciones/$idSim/clasificacion" $tLider
+Check "con la simulación finalizada el estudiante la ve" ($ce.Status -eq 200 -and @($ce.Body.clasificacion).Count -eq 2) "status $($ce.Status)"
+
+# ---------------------------------------------------------------------
 Write-Host "`n------------------------------------------------------------"
 $color = if ($script:fallos -eq 0) { "Green" } else { "Yellow" }
 Write-Host ("Resultado: {0} OK, {1} fallas   (simulación de prueba id {2})" -f $script:ok, $script:fallos, $idSim) -ForegroundColor $color

@@ -27,6 +27,7 @@ public interface CasoJpaRepository extends JpaRepository<CasoEntity, Long> {
     int desactivarTodos(@Param("idSimulacion") Long idSimulacion);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("update CasoEntity c set c.estado = com.estratego.domain.model.caso.EstadoCaso.ACTIVO where c.id = :id")
-    int marcarActivo(@Param("id") Long id);
+    @Query("update CasoEntity c set c.estado = com.estratego.domain.model.caso.EstadoCaso.ACTIVO, " +
+           "c.activadoEn = coalesce(c.activadoEn, :ahora) where c.id = :id")
+    int marcarActivo(@Param("id") Long id, @Param("ahora") java.time.LocalDateTime ahora);
 }

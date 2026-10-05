@@ -25,7 +25,8 @@ public class RegistroDocenteRequest {
 
     @NotBlank(message = "La contraseña es requerida")
     @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres")
-    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^A-Za-z\\d]).+$", message = "La contraseña debe incluir mayúscula, minúscula, número y símbolo")
+    // Símbolo = cualquier carácter que no sea letra, número ni espacio (misma regla que cambiar-contraseña)
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^\\p{L}\\p{N}\\s]).{8,72}$", message = "La contraseña debe tener entre 8 y 72 caracteres, con mayúscula, minúscula, número y símbolo (cualquier carácter que no sea letra, número ni espacio)")
     private String contrasena;
 
 }

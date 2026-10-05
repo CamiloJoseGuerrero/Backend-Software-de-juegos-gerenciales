@@ -1,11 +1,13 @@
 package com.estratego.presentation.controller;
 
+import com.estratego.application.dto.clasificacion.ClasificacionResponse;
 import com.estratego.application.dto.estudiante.CasoActualResponse;
 import com.estratego.application.dto.estudiante.CasoEstudianteResponse;
 import com.estratego.application.dto.estudiante.DecisionRequest;
 import com.estratego.application.dto.estudiante.DecisionResponse;
 import com.estratego.application.dto.estudiante.MiEmpresaResponse;
 import com.estratego.application.dto.estudiante.MiSimulacionResponse;
+import com.estratego.application.usecase.ClasificacionService;
 import com.estratego.application.usecase.PortalEstudianteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,15 @@ import java.util.List;
 public class EstudianteController {
 
     private final PortalEstudianteService portalEstudianteService;
+    private final ClasificacionService clasificacionService;
+
+    /** Ranking final: solo con la simulación FINALIZADA (si no, 400). */
+    @GetMapping("/simulaciones/{idSimulacion}/clasificacion")
+    public ResponseEntity<ClasificacionResponse> clasificacion(
+            @PathVariable Long idSimulacion,
+            Authentication authentication) {
+        return ResponseEntity.ok(clasificacionService.paraEstudiante(idSimulacion, authentication.getName()));
+    }
 
     @GetMapping("/simulaciones")
     public ResponseEntity<List<MiSimulacionResponse>> misSimulaciones(Authentication authentication) {

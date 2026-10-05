@@ -69,7 +69,7 @@ class PortalEstudianteServiceTest {
                 null,
                 BigDecimal.ONE, BigDecimal.TEN, visualizacion, inicio, fin,
                 List.of(new OpcionCaso(1L, 1, "Ampliar", "Resultado secreto")),
-                EstadoCaso.ACTIVO, AsignacionEquipos.MANUAL);
+                EstadoCaso.ACTIVO, AsignacionEquipos.MANUAL, null);
     }
 
     @Test

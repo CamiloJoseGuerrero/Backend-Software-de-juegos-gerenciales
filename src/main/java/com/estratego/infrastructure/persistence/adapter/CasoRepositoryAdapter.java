@@ -76,7 +76,8 @@ public class CasoRepositoryAdapter implements CasoRepository {
 
     @Override
     public void marcarActivo(Long id) {
-        casoJpa.marcarActivo(id);
+        // Hora local (America/Bogota), igual que las demás fechas del caso
+        casoJpa.marcarActivo(id, java.time.LocalDateTime.now());
     }
 
     @Override
@@ -98,7 +99,7 @@ public class CasoRepositoryAdapter implements CasoRepository {
                 e.getPenalizacionMin(), e.getPenalizacionMax(),
                 e.getFechaVisualizacion(), e.getFechaInicio(), e.getFechaFin(),
                 new ArrayList<>(opciones),
-                e.getEstado(), e.getAsignacionEquipos()
+                e.getEstado(), e.getAsignacionEquipos(), e.getActivadoEn()
         );
     }
 
@@ -110,7 +111,7 @@ public class CasoRepositoryAdapter implements CasoRepository {
                 aEmbeddable(c.getFinanciero()),
                 c.getPenalizacionMin(), c.getPenalizacionMax(),
                 c.getFechaVisualizacion(), c.getFechaInicio(), c.getFechaFin(),
-                c.getEstado(), c.getAsignacionEquipos()
+                c.getEstado(), c.getAsignacionEquipos(), c.getActivadoEn()
         );
     }
 
