@@ -7,6 +7,7 @@ import com.estratego.domain.model.financiero.EstadoFinanciero;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.*;
+import com.estratego.domain.service.OrdenCasos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -26,6 +29,7 @@ public class CasoService {
     private final UsuarioRepository usuarioRepository;
     private final DecisionCasoRepository decisionCasoRepository;
     private final EmpresaRepository empresaRepository;
+    private final IntegranteRepository integranteRepository;
 
     @Transactional
     public CasoResponse crear(Long idSimulacion, CasoRequest request, String correoDocente) {
@@ -41,7 +45,13 @@ public class CasoService {
         caso.setEstado(EstadoCaso.BORRADOR);
         copiar(request, caso);
 
-        return toResponse(casoRepository.save(caso));
+        List<Caso> existentes = casoRepository.findByIdSimulacion(idSimulacion);
+        List<Caso> despues = new ArrayList<>(existentes);
+        despues.add(caso);
+        validarPosicion(caso, despues, OrdenCasos.primero(existentes), "mover");
+
+        boolean primero = esPrimero(caso, despues);
+        return toResponse(casoRepository.save(caso), primero);
     }
 
     /** Todos los casos de todas las simulaciones del docente (pestaña "Casos"). */
@@ -50,16 +60,12 @@ public class CasoService {
         List<Long> idsSimulacion = simulacionRepository.findByIdUsuarioCoordinador(idDocente).stream()
                 .map(Simulacion::getId)
                 .toList();
-        return casoRepository.findByIdSimulacionIn(idsSimulacion).stream()
-                .map(this::toResponse)
-                .toList();
+        return conPrimerCaso(casoRepository.findByIdSimulacionIn(idsSimulacion));
     }
 
     public List<CasoResponse> listarPorSimulacion(Long idSimulacion, String correoDocente) {
         obtenerSimulacionYValidar(idSimulacion, correoDocente);
-        return casoRepository.findByIdSimulacion(idSimulacion).stream()
-                .map(this::toResponse)
-                .toList();
+        return conPrimerCaso(casoRepository.findByIdSimulacion(idSimulacion));
     }
 
     public CasoResponse obtener(Long id, String correoDocente) {
@@ -74,9 +80,17 @@ public class CasoService {
         validarDatos(request, ctx.simulacion());
 
         Caso caso = ctx.caso();
+        List<Caso> existentes = casoRepository.findByIdSimulacion(caso.getIdSimulacion());
+        Optional<Caso> primeroAntes = OrdenCasos.primero(existentes);
         copiar(request, caso);
 
-        return toResponse(casoRepository.save(caso));
+        List<Caso> despues = new ArrayList<>(existentes.stream()
+                .filter(c -> !Objects.equals(c.getId(), caso.getId())).toList());
+        despues.add(caso);
+        validarPosicion(caso, despues, primeroAntes, "mover");
+
+        boolean primero = esPrimero(caso, despues);
+        return toResponse(casoRepository.save(caso), primero);
     }
 
     /** Deja este caso como el ACTIVO de su simulación; el que estaba activo pasa a BORRADOR. */
@@ -91,6 +105,7 @@ public class CasoService {
         if (caso.getEstado() == EstadoCaso.ACTIVO) {
             return toResponse(caso);
         }
+        validarEmpresasConLider(caso.getIdSimulacion());
 
         // Solo cambia el estado: no toca las opciones (sus ids pueden tener decisiones asociadas)
         casoRepository.desactivarTodos(caso.getIdSimulacion());
@@ -104,6 +119,9 @@ public class CasoService {
         Contexto ctx = obtenerYValidar(id, correoDocente);
         validarSimulacionEditable(ctx.simulacion());
         validarSinDecisiones(id);
+        List<Caso> existentes = casoRepository.findByIdSimulacion(ctx.caso().getIdSimulacion());
+        List<Caso> despues = existentes.stream().filter(c -> !Objects.equals(c.getId(), id)).toList();
+        validarPosicion(null, despues, OrdenCasos.primero(existentes), "eliminar");
         casoRepository.deleteById(id);
     }
 
@@ -132,6 +150,25 @@ public class CasoService {
                     quien, d.getFechaDecision()));
         }
         return resultado;
+    }
+
+    /**
+     * Una empresa con integrantes y sin líder no podría decidir y acumularía penalización
+     * sin que nadie lo note: no se deja activar el caso hasta que tenga líder.
+     * Las empresas sin integrantes no bloquean.
+     */
+    private void validarEmpresasConLider(Long idSimulacion) {
+        List<String> sinLider = new ArrayList<>();
+        for (Empresa e : empresaRepository.findByIdSimulacion(idSimulacion)) {
+            var integrantes = integranteRepository.findByIdEmpresa(e.getId());
+            if (!integrantes.isEmpty() && integrantes.stream().noneMatch(i -> i.isEsLider())) {
+                sinLider.add(e.getCodigoEmpresa() + " (" + e.getNombre() + ")");
+            }
+        }
+        if (!sinLider.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No se puede activar el caso: estas empresas no tienen líder: " + String.join(", ", sinLider));
+        }
     }
 
     private void validarSinDecisiones(Long idCaso) {
@@ -163,12 +200,51 @@ public class CasoService {
             throw new IllegalArgumentException(
                     "La partida no puede terminar después de la fecha de fin de la simulación");
         }
-        EstadoFinanciero ef = r.getFinanciero().aEstadoFinanciero();
-        if (!ef.cuadra()) {
-            throw new IllegalArgumentException(String.format(
-                    "El balance no cuadra: activo total %s, pasivo + patrimonio %s",
-                    ef.activoTotal().toPlainString(), ef.pasivoTotal().add(ef.patrimonio()).toPlainString()));
+    }
+
+    /**
+     * D2: solo el primer caso de la simulación define el balance inicial.
+     * <ul>
+     *   <li>Si el caso que se guarda queda primero: 19 partidas y balance que cuadre.</li>
+     *   <li>Si por mover fechas o eliminar pasa a ser primero otro caso: ese debe tener balance completo
+     *       que cuadre. Solo se revisa cuando el primero cambia, para no bloquear simulaciones viejas.</li>
+     * </ul>
+     *
+     * @param guardado el caso que se crea o edita (null al eliminar)
+     * @param despues  los casos de la simulación como quedarían
+     * @param accion   "mover" o "eliminar", para el mensaje
+     */
+    private void validarPosicion(Caso guardado, List<Caso> despues, Optional<Caso> primeroAntes, String accion) {
+        Optional<Caso> primero = OrdenCasos.primero(despues);
+        if (primero.isEmpty()) return;
+        Caso p = primero.get();
+        if (p == guardado) {
+            EstadoFinanciero ef = guardado.getFinanciero();
+            List<String> faltan = ef.partidasFaltantes();
+            if (!faltan.isEmpty()) {
+                throw new CampoInvalidoException("financiero",
+                        "El primer caso de la simulación debe traer las 19 partidas; faltan: "
+                                + String.join(", ", faltan));
+            }
+            if (!ef.cuadra()) {
+                throw new CampoInvalidoException("financiero", String.format(
+                        "El balance no cuadra: activo total %s, pasivo + patrimonio %s",
+                        ef.activoTotal().toPlainString(), ef.pasivoTotal().add(ef.patrimonio()).toPlainString()));
+            }
+            return;
         }
+        boolean cambioElPrimero = primeroAntes.isEmpty()
+                || !Objects.equals(primeroAntes.get().getId(), p.getId());
+        if (cambioElPrimero && !balanceInicialValido(p)) {
+            throw new CampoInvalidoException("financiero", String.format(
+                    "Al %s este caso, «%s» pasaría a ser el primero y no tiene balance inicial",
+                    accion, p.getNombreEmpresa()));
+        }
+    }
+
+    private static boolean balanceInicialValido(Caso c) {
+        EstadoFinanciero ef = c.getFinanciero();
+        return ef != null && ef.partidasFaltantes().isEmpty() && ef.cuadra();
     }
 
     private void validarSimulacionEditable(Simulacion simulacion) {
@@ -187,9 +263,11 @@ public class CasoService {
         // El backend es la fuente de verdad: los totales se calculan de las partidas
         EstadoFinanciero ef = r.getFinanciero().aEstadoFinanciero();
         c.setFinanciero(ef);
-        c.setActivoTotal(ef.activoTotal());
-        c.setPasivoTotal(ef.pasivoTotal());
-        c.setPatrimonio(ef.patrimonio());
+        // Casos que no son el primero pueden venir sin balance: sus totales quedan null
+        boolean conBalance = ef.balanceCompleto();
+        c.setActivoTotal(conBalance ? ef.activoTotal() : null);
+        c.setPasivoTotal(conBalance ? ef.pasivoTotal() : null);
+        c.setPatrimonio(conBalance ? ef.patrimonio() : null);
         c.setUtilidadNeta(ef.utilidadNeta());
         c.setPenalizacionMin(r.getPenalizacionMin());
         c.setPenalizacionMax(r.getPenalizacionMax());
@@ -233,7 +311,31 @@ public class CasoService {
                 .getId();
     }
 
+    /** esPrimerCaso por simulación (la lista puede traer casos de varias). */
+    private List<CasoResponse> conPrimerCaso(List<Caso> casos) {
+        Map<Long, Long> primeroPorSimulacion = casos.stream()
+                .collect(Collectors.groupingBy(Caso::getIdSimulacion)).values().stream()
+                .map(OrdenCasos::primero)
+                .flatMap(Optional::stream)
+                .collect(Collectors.toMap(Caso::getIdSimulacion, Caso::getId));
+        return casos.stream()
+                .map(c -> toResponse(c, Objects.equals(primeroPorSimulacion.get(c.getIdSimulacion()), c.getId())))
+                .toList();
+    }
+
+    private boolean esPrimero(Caso caso, List<Caso> casosDeLaSimulacion) {
+        return OrdenCasos.primero(casosDeLaSimulacion).map(p -> p == caso).orElse(false);
+    }
+
     private CasoResponse toResponse(Caso c) {
+        List<Caso> casos = casoRepository.findByIdSimulacion(c.getIdSimulacion());
+        boolean primero = OrdenCasos.primero(casos)
+                .map(p -> Objects.equals(p.getId(), c.getId()))
+                .orElse(false);
+        return toResponse(c, primero);
+    }
+
+    private CasoResponse toResponse(Caso c, boolean esPrimerCaso) {
         return new CasoResponse(
                 c.getId(), c.getIdSimulacion(),
                 c.getNombreEmpresa(), c.getTipo(), c.getEstado(), c.getMision(), c.getVision(),
@@ -244,7 +346,8 @@ public class CasoService {
                 c.getOpciones().stream()
                         .map(o -> new OpcionCasoResponse(o.getId(), o.getOrden(), o.getOpcion(), o.getResultado(),
                                 o.getImpacto()))
-                        .toList()
+                        .toList(),
+                esPrimerCaso
         );
     }
 

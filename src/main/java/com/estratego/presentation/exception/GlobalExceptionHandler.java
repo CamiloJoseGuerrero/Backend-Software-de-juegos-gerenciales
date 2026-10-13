@@ -1,5 +1,6 @@
 package com.estratego.presentation.exception;
 
+import com.estratego.application.usecase.CampoInvalidoException;
 import com.estratego.application.usecase.InvalidCredentialsException;
 import com.estratego.application.usecase.UsuarioDuplicadoException;
 import com.estratego.application.usecase.CuentaBloqueadaException;
@@ -9,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import java.util.Arrays;
+import java.util.List;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -60,16 +63,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidationExceptions(
             MethodArgumentNotValidException ex, WebRequest request) {
-        String message = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(error -> error.getDefaultMessage())
+        List<ApiError.ErrorCampo> errores = new java.util.ArrayList<>();
+        ex.getBindingResult().getFieldErrors().forEach(e ->
+                errores.add(new ApiError.ErrorCampo(e.getField(), e.getDefaultMessage())));
+        ex.getBindingResult().getGlobalErrors().forEach(e ->
+                errores.add(new ApiError.ErrorCampo(null, e.getDefaultMessage())));
+
+        String message = errores.stream()
+                .map(ApiError.ErrorCampo::mensaje)
                 .collect(Collectors.joining(", "));
 
         ApiError apiError = new ApiError(
                 message,
                 HttpStatus.BAD_REQUEST.value(),
-                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
+                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME),
+                errores
+        );
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
+    /** Regla de negocio atribuible a un campo (p. ej. el balance no cuadra → "financiero"). */
+    @ExceptionHandler(CampoInvalidoException.class)
+    public ResponseEntity<ApiError> handleCampoInvalido(CampoInvalidoException ex, WebRequest request) {
+        ApiError apiError = new ApiError(
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME),
+                List.of(new ApiError.ErrorCampo(ex.getCampo(), ex.getMessage()))
         );
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
     }
@@ -117,6 +137,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleMessageNotReadable(
             HttpMessageNotReadableException ex, WebRequest request) {
         String message = "El cuerpo de la solicitud no es válido";
+        String rutaCampo = ex.getCause() instanceof JsonMappingException jme ? ruta(jme.getPath()) : null;
         if (ex.getCause() instanceof InvalidFormatException ife
                 && ife.getTargetType() == java.time.LocalDateTime.class) {
             String campo = ife.getPath().isEmpty() ? "fecha"
@@ -133,7 +154,9 @@ public class GlobalExceptionHandler {
         ApiError apiError = new ApiError(
                 message,
                 HttpStatus.BAD_REQUEST.value(),
-                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
+                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME),
+                rutaCampo != null && !rutaCampo.isEmpty()
+                        ? List.of(new ApiError.ErrorCampo(rutaCampo, message)) : null
         );
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
     }
@@ -164,4 +187,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
         }
     
+
+    /** Ruta del campo en el JSON: "opciones[0].impacto.costoVentas.tipo". */
+    private static String ruta(List<JsonMappingException.Reference> path) {
+        StringBuilder sb = new StringBuilder();
+        for (JsonMappingException.Reference r : path) {
+            if (r.getFieldName() != null) {
+                if (sb.length() > 0) sb.append('.');
+                sb.append(r.getFieldName());
+            } else if (r.getIndex() >= 0) {
+                sb.append('[').append(r.getIndex()).append(']');
+            }
+        }
+        return sb.toString();
+    }
 }

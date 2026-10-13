@@ -1,6 +1,9 @@
 package com.estratego.application.usecase;
 
+import com.estratego.application.dto.docente.ActualizarEmpresaRequest;
 import com.estratego.application.dto.docente.CrearEmpresaRequest;
+import com.estratego.domain.model.integrante.Departamento;
+import com.estratego.domain.model.integrante.Integrante;
 import com.estratego.domain.model.empresa.Empresa;
 import com.estratego.domain.model.empresa.EstadoEmpresa;
 import com.estratego.domain.model.empresa.TipoJugador;
@@ -20,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -125,5 +129,47 @@ class EmpresaServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> empresaService.eliminar(1L, CORREO_DOCENTE));
+    }
+
+    private Empresa empresaMulti() {
+        return new Empresa(1L, SIMULACION_ID, "EMP-001", "TechStart",
+                "Estrategia", TipoJugador.MULTIUSUARIO, EstadoEmpresa.ACTIVA);
+    }
+
+    private void contextoEditable(Empresa empresa) {
+        when(empresaRepository.findById(1L)).thenReturn(Optional.of(empresa));
+        when(simulacionRepository.findById(SIMULACION_ID)).thenReturn(Optional.of(simulacionBorrador));
+        when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
+    }
+
+    @Test
+    void noSePuedePasarAMonousuarioConVariosIntegrantes() {
+        contextoEditable(empresaMulti());
+        when(integranteRepository.findByIdEmpresa(1L)).thenReturn(List.of(
+                new Integrante(1L, 1L, 20L, Departamento.COMERCIAL, true),
+                new Integrante(2L, 1L, 21L, Departamento.OPERACIONES, false)));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> empresaService.actualizar(1L,
+                        new ActualizarEmpresaRequest("TechStart", null, TipoJugador.MONOUSUARIO), CORREO_DOCENTE));
+
+        assertEquals("No se puede cambiar a MONOUSUARIO: la empresa tiene 2 integrantes y solo admite 1",
+                ex.getMessage());
+        org.mockito.Mockito.verify(empresaRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void alPasarAMonousuarioElUnicoIntegranteQuedaLider() {
+        contextoEditable(empresaMulti());
+        Integrante unico = new Integrante(1L, 1L, 20L, Departamento.COMERCIAL, false);
+        when(integranteRepository.findByIdEmpresa(1L)).thenReturn(List.of(unico));
+        when(empresaRepository.save(any(Empresa.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var r = empresaService.actualizar(1L,
+                new ActualizarEmpresaRequest("TechStart", null, TipoJugador.MONOUSUARIO), CORREO_DOCENTE);
+
+        assertEquals(TipoJugador.MONOUSUARIO, r.getTipoJugador());
+        assertTrue(unico.isEsLider());
+        org.mockito.Mockito.verify(integranteRepository).save(unico);
     }
 }

@@ -145,8 +145,18 @@ $caso = @{
 }
 # Si la prueba corre justo después de medianoche, la partida quedaría antes del inicio de la simulación
 if ($ahora.AddMinutes(-10).Date -lt $ahora.Date) { $caso.fechaVisualizacion = $ahora.ToString($fmt); $caso.fechaInicioPartida = $ahora.AddSeconds(5).ToString($fmt) }
+# El cuadre solo se valida en el primer caso de la simulación: se prueba antes de crearlo
+$malo = $caso.Clone(); $malo.financiero = $caso.financiero.Clone(); $malo.financiero.efectivo = 250000
+$rb = Api Post "/docente/casos" $tDoc $malo
+Esperar $rb 400 "balance que no cuadra -> 400"
+Check "  ...con errores[].campo = financiero" (@($rb.Body.errores)[0].campo -eq "financiero") "errores: $($rb.Body.errores | ConvertTo-Json -Compress)"
+$malo = $caso.Clone(); $malo.financiero = $caso.financiero.Clone(); $malo.financiero.Remove("efectivo")
+$rf = Api Post "/docente/casos" $tDoc $malo
+Esperar $rf 400 "primer caso sin efectivo -> 400"
+Check "  ...pide las 19 partidas" ($rf.Body.message -like "*debe traer las 19 partidas; faltan: efectivo*") "mensaje: $($rf.Body.message)"
 $c = Api Post "/docente/casos" $tDoc $caso
 Esperar $c 201 "crear caso (borrador)"
+Check "el primer caso viene con esPrimerCaso = true" ($c.Body.esPrimerCaso -eq $true)
 $idCaso = $c.Body.id
 Check "estado borrador y 2 opciones" ($c.Body.estado -eq "borrador" -and @($c.Body.opciones).Count -eq 2)
 $f = $c.Body.financiero
@@ -154,10 +164,10 @@ Check "totales calculados: activo 1.000.000, pasivo 400.000, patrimonio 600.000,
 $imp = $c.Body.opciones[0].impacto
 Check "la opción 1 guarda su impacto" ($imp.ventasNetas.tipo -eq "porcentaje" -and $imp.ventasNetas.valor -eq 15 -and $imp.gastosFinancieros.valor -eq 30000)
 Check "la opción 2 sin impacto" ($null -eq $c.Body.opciones[1].impacto)
-$malo = $caso.Clone(); $malo.financiero = $caso.financiero.Clone(); $malo.financiero.efectivo = 250000
-Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "balance que no cuadra -> 400"
 $malo = $caso.Clone(); $malo.financiero = $caso.financiero.Clone(); $malo.financiero.Remove("impuestoRenta")
-Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "falta una partida -> 400"
+$rp = Api Post "/docente/casos" $tDoc $malo
+Esperar $rp 400 "falta una partida -> 400"
+Check "  ...con errores[].campo = financiero.impuestoRenta" (@($rp.Body.errores | Where-Object { $_.campo -eq "financiero.impuestoRenta" }).Count -eq 1) "errores: $($rp.Body.errores | ConvertTo-Json -Compress)"
 $malo = $caso.Clone(); $malo.opciones = @(@{ opcion = "X"; resultado = "Y"; impacto = @{ ventasNeta = @{ tipo = "monto"; valor = 1 } } })
 Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "impacto con un rubro mal escrito -> 400"
 $malo = $caso.Clone(); $malo.opciones = @(@{ opcion = "X"; resultado = "Y"; impacto = @{ costoVentas = @{ tipo = "porcentaje"; valor = -150 } } })
@@ -168,6 +178,20 @@ $malo = $caso.Clone(); $malo.opciones = @()
 Esperar (Api Post "/docente/casos" $tDoc $malo) 400 "caso sin opciones -> 400"
 $c2 = Api Post "/docente/casos" $tDoc $caso
 Esperar $c2 201 "crear un segundo caso"
+Check "el segundo (misma fecha, creado después) no es el primero" ($c2.Body.esPrimerCaso -eq $false)
+# D2: un caso siguiente solo necesita las 6 partidas del estado de resultados
+$soloER = $caso.Clone()
+$soloER.financiero = @{ ventasNetas = 900000; costoVentas = 550000; gastosAdministracion = 90000; gastosVentas = 70000; gastosFinancieros = 20000; impuestoRenta = 50000 }
+$soloER.fechaInicioPartida = $ahora.AddMinutes(-5).ToString($fmt)
+$c3 = Api Post "/docente/casos" $tDoc $soloER
+Esperar $c3 201 "caso siguiente solo con estado de resultados"
+$f3 = $c3.Body.financiero
+Check "  ...sin totales de balance y utilidad 120.000" ($c3.Body.esPrimerCaso -eq $false -and $null -eq $f3.activoTotal -and $null -eq $f3.patrimonio -and $f3.utilidadNeta -eq 120000) "esPrimerCaso $($c3.Body.esPrimerCaso), activo $($f3.activoTotal), utilidad $($f3.utilidadNeta)"
+$antes = $soloER.Clone(); $antes.fechaVisualizacion = $ahora.AddMinutes(-40).ToString($fmt); $antes.fechaInicioPartida = $ahora.AddMinutes(-20).ToString($fmt)
+$rm = Api Put "/docente/casos/$($c3.Body.id)" $tDoc $antes
+Esperar $rm 400 "moverlo antes del primero sin balance -> 400"
+Check "  ...pide las 19 partidas en errores[].campo = financiero" ($rm.Body.message -like "*debe traer las 19 partidas*" -and @($rm.Body.errores)[0].campo -eq "financiero") "mensaje: $($rm.Body.message)"
+Esperar (Api Delete "/docente/casos/$($c3.Body.id)" $tDoc) 204 "eliminar el caso solo con estado de resultados"
 Check "GET /docente/casos incluye los nuevos" (@((Api Get "/docente/casos" $tDoc).Body | Where-Object { $_.idSimulacion -eq $idSim }).Count -eq 2)
 Esperar (Api Post "/docente/casos/$($c2.Body.id)/activar" $tDoc) 200 "activar el segundo caso"
 $act = Api Post "/docente/casos/$idCaso/activar" $tDoc

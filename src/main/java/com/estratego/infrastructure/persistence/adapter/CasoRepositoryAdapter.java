@@ -115,7 +115,7 @@ public class CasoRepositoryAdapter implements CasoRepository {
         );
     }
 
-    private static EstadoFinanciero aDominio(EstadoFinancieroEmbeddable f) {
+    static EstadoFinanciero aDominio(EstadoFinancieroEmbeddable f) {
         if (f == null) return null;
         return new EstadoFinanciero(
                 f.getEfectivo(), f.getCuentasPorCobrar(), f.getInventarios(),
@@ -128,7 +128,7 @@ public class CasoRepositoryAdapter implements CasoRepository {
                 f.getFlujoOperativo(), f.getFlujoInversion(), f.getFlujoFinanciacion());
     }
 
-    private static EstadoFinancieroEmbeddable aEmbeddable(EstadoFinanciero f) {
+    static EstadoFinancieroEmbeddable aEmbeddable(EstadoFinanciero f) {
         if (f == null) return null;
         return new EstadoFinancieroEmbeddable(
                 f.getEfectivo(), f.getCuentasPorCobrar(), f.getInventarios(),

@@ -31,4 +31,6 @@ public class CasoResponse {
     private LocalDateTime fechaFinPartida;
     private AsignacionEquipos asignacionEquipos;
     private List<OpcionCasoResponse> opciones;
+    /** true si es el primero de su simulación (el único que define el balance inicial). */
+    private boolean esPrimerCaso;
 }

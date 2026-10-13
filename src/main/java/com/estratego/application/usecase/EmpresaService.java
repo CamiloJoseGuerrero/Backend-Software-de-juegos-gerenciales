@@ -6,6 +6,7 @@ import com.estratego.application.dto.docente.EmpresaResponse;
 import com.estratego.domain.model.empresa.Empresa;
 import com.estratego.domain.model.empresa.EstadoEmpresa;
 import com.estratego.domain.model.empresa.TipoJugador;
+import com.estratego.domain.model.integrante.Integrante;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.EmpresaRepository;
@@ -82,6 +83,10 @@ public class EmpresaService {
         empresa.setNombre(request.getNombre().trim());
         empresa.setEstrategia(request.getEstrategia());
         if (request.getTipoJugador() != null) {
+            if (request.getTipoJugador() == TipoJugador.MONOUSUARIO
+                    && empresa.getTipoJugador() != TipoJugador.MONOUSUARIO) {
+                pasarAMonousuario(empresa);
+            }
             empresa.setTipoJugador(request.getTipoJugador());
         }
 
@@ -103,6 +108,21 @@ public class EmpresaService {
 
         integranteRepository.deleteByIdEmpresa(id);
         empresaRepository.deleteById(id);
+    }
+
+    /** MONOUSUARIO admite un solo integrante, y ese integrante es el líder. */
+    private void pasarAMonousuario(Empresa empresa) {
+        List<Integrante> integrantes = integranteRepository.findByIdEmpresa(empresa.getId());
+        if (integrantes.size() > 1) {
+            throw new IllegalArgumentException(String.format(
+                    "No se puede cambiar a MONOUSUARIO: la empresa tiene %d integrantes y solo admite 1",
+                    integrantes.size()));
+        }
+        if (integrantes.size() == 1 && !integrantes.get(0).isEsLider()) {
+            Integrante unico = integrantes.get(0);
+            unico.setEsLider(true);
+            integranteRepository.save(unico);
+        }
     }
 
     private Empresa obtenerYValidar(Long id, String correoDocente) {

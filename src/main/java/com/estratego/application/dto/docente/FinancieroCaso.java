@@ -11,9 +11,13 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 /**
- * Información financiera inicial del caso ("período 0").
- * En el request vienen las 19 partidas; los 4 totales los calcula el backend
- * (si el cliente los manda, se ignoran) y solo salen en la respuesta.
+ * Información financiera del caso.
+ * Primer caso de la simulación: las 19 partidas son obligatorias y el balance debe cuadrar
+ * (lo valida CasoService según la posición del caso, no las anotaciones).
+ * Casos siguientes: solo las 6 del estado de resultados (escenario del período); las 10 del balance
+ * y los 3 flujos son opcionales: si llegan se guardan pero no se usan, porque el balance se hereda por empresa.
+ * Los 4 totales los calcula el backend (si el cliente los manda, se ignoran) y solo salen en la respuesta;
+ * activoTotal, pasivoTotal y patrimonio salen null si el balance no está completo.
  */
 @Data
 @NoArgsConstructor
@@ -35,48 +39,38 @@ public class FinancieroCaso {
 
     // ---- Balance - Activo ----
 
-    @NotNull(message = "El efectivo es obligatorio")
     @DecimalMin(value = "0", message = "El efectivo no puede ser negativo")
     private BigDecimal efectivo;
 
-    @NotNull(message = "Las cuentas por cobrar son obligatorias")
     @DecimalMin(value = "0", message = "Las cuentas por cobrar no pueden ser negativas")
     private BigDecimal cuentasPorCobrar;
 
-    @NotNull(message = "Los inventarios son obligatorios")
     @DecimalMin(value = "0", message = "Los inventarios no pueden ser negativos")
     private BigDecimal inventarios;
 
-    @NotNull(message = "La propiedad, planta y equipo es obligatoria")
     @DecimalMin(value = "0", message = "La propiedad, planta y equipo no puede ser negativa")
     private BigDecimal propiedadPlantaEquipo;
 
-    @NotNull(message = "Los activos intangibles son obligatorios")
     @DecimalMin(value = "0", message = "Los activos intangibles no pueden ser negativos")
     private BigDecimal activosIntangibles;
 
     // ---- Balance - Pasivo ----
 
-    @NotNull(message = "Las cuentas por pagar son obligatorias")
     @DecimalMin(value = "0", message = "Las cuentas por pagar no pueden ser negativas")
     private BigDecimal cuentasPorPagar;
 
-    @NotNull(message = "Las obligaciones financieras de corto plazo son obligatorias")
     @DecimalMin(value = "0", message = "Las obligaciones financieras de corto plazo no pueden ser negativas")
     private BigDecimal obligacionesFinancierasCortoPlazo;
 
-    @NotNull(message = "Las obligaciones financieras de largo plazo son obligatorias")
     @DecimalMin(value = "0", message = "Las obligaciones financieras de largo plazo no pueden ser negativas")
     private BigDecimal obligacionesFinancierasLargoPlazo;
 
     // ---- Balance - Patrimonio ----
 
-    @NotNull(message = "El capital social es obligatorio")
     @DecimalMin(value = "0", message = "El capital social no puede ser negativo")
     private BigDecimal capitalSocial;
 
     /** Puede ser negativo (pérdidas acumuladas). */
-    @NotNull(message = "Las utilidades retenidas son obligatorias")
     private BigDecimal utilidadesRetenidas;
 
     // ---- Estado de Resultados ----
@@ -107,13 +101,10 @@ public class FinancieroCaso {
 
     // ---- Flujo de Efectivo (pueden ser negativos) ----
 
-    @NotNull(message = "El flujo operativo es obligatorio")
     private BigDecimal flujoOperativo;
 
-    @NotNull(message = "El flujo de inversión es obligatorio")
     private BigDecimal flujoInversion;
 
-    @NotNull(message = "El flujo de financiación es obligatorio")
     private BigDecimal flujoFinanciacion;
 
     /** Las 19 partidas del request como modelo de dominio. */
