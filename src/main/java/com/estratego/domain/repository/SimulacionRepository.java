@@ -11,6 +11,8 @@ public interface SimulacionRepository {
 
     List<Simulacion> findByIdUsuarioCoordinador(Long idUsuarioCoordinador);
 
+    List<Simulacion> findByEstado(com.estratego.domain.model.simulacion.EstadoSimulacion estado);
+
     Simulacion save(Simulacion simulacion);
 
     void deleteById(Long id);

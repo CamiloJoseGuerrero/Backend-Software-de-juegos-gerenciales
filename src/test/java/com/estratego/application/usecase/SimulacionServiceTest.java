@@ -34,6 +34,9 @@ class SimulacionServiceTest {
     @Mock
     private UsuarioRepository usuarioRepository;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private SimulacionService simulacionService;
 

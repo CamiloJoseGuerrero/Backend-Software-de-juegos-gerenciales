@@ -8,7 +8,9 @@ import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.*;
 import com.estratego.domain.service.OrdenCasos;
+import com.estratego.application.event.EstadosFinancierosPendientesEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class CasoService {
     private final DecisionCasoRepository decisionCasoRepository;
     private final EmpresaRepository empresaRepository;
     private final IntegranteRepository integranteRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public CasoResponse crear(Long idSimulacion, CasoRequest request, String correoDocente) {
@@ -111,6 +114,8 @@ public class CasoService {
         casoRepository.desactivarTodos(caso.getIdSimulacion());
         casoRepository.marcarActivo(id);
         caso.setEstado(EstadoCaso.ACTIVO);
+        // D2: cierra el caso anterior y siembra los estados iniciales de este (después del commit)
+        eventPublisher.publishEvent(new EstadosFinancierosPendientesEvent(caso.getIdSimulacion()));
         return toResponse(caso);
     }
 

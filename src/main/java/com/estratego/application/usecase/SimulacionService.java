@@ -7,7 +7,9 @@ import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.SimulacionRepository;
 import com.estratego.domain.repository.UsuarioRepository;
+import com.estratego.application.event.EstadosFinancierosPendientesEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class SimulacionService {
 
     private final SimulacionRepository simulacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public SimulacionResponse crear(CrearSimulacionRequest request, String correoCoordinador) {
@@ -93,7 +96,9 @@ public class SimulacionService {
         }
 
         simulacion.setEstado(EstadoSimulacion.EN_CURSO);
-        return toResponse(simulacionRepository.save(simulacion));
+        Simulacion guardada = simulacionRepository.save(simulacion);
+        eventPublisher.publishEvent(new EstadosFinancierosPendientesEvent(id));
+        return toResponse(guardada);
     }
 
     @Transactional
@@ -105,7 +110,10 @@ public class SimulacionService {
         }
 
         simulacion.setEstado(EstadoSimulacion.FINALIZADA);
-        return toResponse(simulacionRepository.save(simulacion));
+        Simulacion guardada = simulacionRepository.save(simulacion);
+        // D2: al finalizar se cierran todos los casos jugados
+        eventPublisher.publishEvent(new EstadosFinancierosPendientesEvent(id));
+        return toResponse(guardada);
     }
 
     @Transactional

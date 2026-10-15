@@ -10,4 +10,6 @@ import java.util.List;
 public interface SimulacionJpaRepository extends JpaRepository<SimulacionEntity, Long> {
 
     List<SimulacionEntity> findByIdUsuarioCoordinador(Long idUsuarioCoordinador);
+
+    List<SimulacionEntity> findByEstado(com.estratego.domain.model.simulacion.EstadoSimulacion estado);
 }

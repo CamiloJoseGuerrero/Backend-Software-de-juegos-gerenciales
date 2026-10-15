@@ -29,6 +29,13 @@ public class SimulacionRepositoryAdapter implements SimulacionRepository {
     }
 
     @Override
+    public List<Simulacion> findByEstado(com.estratego.domain.model.simulacion.EstadoSimulacion estado) {
+        return jpaRepository.findByEstado(estado).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public Simulacion save(Simulacion simulacion) {
         return toDomain(jpaRepository.save(toEntity(simulacion)));
     }

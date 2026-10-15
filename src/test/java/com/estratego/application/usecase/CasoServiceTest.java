@@ -56,6 +56,7 @@ class CasoServiceTest {
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private DecisionCasoRepository decisionCasoRepository;
     @Mock private EmpresaRepository empresaRepository;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @Mock private IntegranteRepository integranteRepository;
 
     @InjectMocks
@@ -326,6 +327,9 @@ class CasoServiceTest {
         orden.verify(casoRepository).desactivarTodos(SIMULACION_ID);
         orden.verify(casoRepository).marcarActivo(5L);
         verify(casoRepository, never()).save(any());
+        // D2: pide sembrar/cerrar los estados financieros de la simulación después del commit
+        verify(eventPublisher).publishEvent(
+                new com.estratego.application.event.EstadosFinancierosPendientesEvent(SIMULACION_ID));
     }
 
     @Test
