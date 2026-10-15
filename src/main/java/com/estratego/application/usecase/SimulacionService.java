@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -87,6 +88,10 @@ public class SimulacionService {
     public SimulacionResponse iniciar(Long id, String correoCoordinador) {
         Simulacion simulacion = obtenerYValidar(id, correoCoordinador);
 
+        // Idempotente: el cierre automático pudo haberla iniciado ya al llegar su fecha de inicio
+        if (simulacion.getEstado() == EstadoSimulacion.EN_CURSO) {
+            return toResponse(simulacion);
+        }
         if (simulacion.getEstado() != EstadoSimulacion.PROGRAMADA) {
             throw new IllegalArgumentException("Solo se puede iniciar una simulación en PROGRAMADA");
         }
@@ -114,6 +119,36 @@ public class SimulacionService {
         // D2: al finalizar se cierran todos los casos jugados
         eventPublisher.publishEvent(new EstadosFinancierosPendientesEvent(id));
         return toResponse(guardada);
+    }
+
+    /**
+     * Ciclo de vida automático (lo llama el cierre automático cada minuto):
+     * <ul>
+     *   <li>PROGRAMADA → EN_CURSO cuando llega su fecha de inicio.</li>
+     *   <li>EN_CURSO → FINALIZADA cuando termina el día de su fecha de fin (sin fecha de fin, solo a mano).</li>
+     * </ul>
+     * Los endpoints /iniciar y /finalizar siguen sirviendo para hacerlo antes.
+     *
+     * @return las simulaciones que cambiaron de estado (para calcular sus estados financieros)
+     */
+    @Transactional
+    public List<Long> avanzarAutomaticamente(LocalDate hoy) {
+        List<Long> cambiadas = new ArrayList<>();
+        for (Simulacion s : simulacionRepository.findByEstado(EstadoSimulacion.PROGRAMADA)) {
+            if (s.getFechaInicio() != null && !s.getFechaInicio().isAfter(hoy)) {
+                s.setEstado(EstadoSimulacion.EN_CURSO);
+                simulacionRepository.save(s);
+                cambiadas.add(s.getId());
+            }
+        }
+        for (Simulacion s : simulacionRepository.findByEstado(EstadoSimulacion.EN_CURSO)) {
+            if (s.getFechaFin() != null && hoy.isAfter(s.getFechaFin())) {
+                s.setEstado(EstadoSimulacion.FINALIZADA);
+                simulacionRepository.save(s);
+                if (!cambiadas.contains(s.getId())) cambiadas.add(s.getId());
+            }
+        }
+        return cambiadas;
     }
 
     @Transactional

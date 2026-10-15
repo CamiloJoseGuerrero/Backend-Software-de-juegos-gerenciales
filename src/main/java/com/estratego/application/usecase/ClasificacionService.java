@@ -6,11 +6,16 @@ import com.estratego.application.dto.clasificacion.ResultadoCasoResponse;
 import com.estratego.domain.model.caso.Caso;
 import com.estratego.domain.model.caso.DecisionCaso;
 import com.estratego.domain.model.caso.OpcionCaso;
+import com.estratego.domain.model.caso.EstadoCaso;
 import com.estratego.domain.model.empresa.Empresa;
+import com.estratego.domain.model.financiero.EstadoFinancieroEmpresa;
+import com.estratego.domain.model.financiero.MomentoEstado;
+import com.estratego.domain.model.financiero.OrigenEstado;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.*;
 import com.estratego.domain.service.CalculadoraResultadoCaso;
+import com.estratego.domain.service.OrdenCasos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +27,17 @@ import java.util.stream.Collectors;
 
 /**
  * Clasificación de una simulación: utilidad neta acumulada por empresa.
- * Se calcula al vuelo; un caso con decisiones ya no se puede editar, así que el resultado es estable.
+ *
+ * <p>Encadenada (D2): la utilidad de cada caso sale del estado FINAL guardado de la empresa
+ * (CalculoEstadosService), que ya incluye la decisión o la penalización sobre su balance heredado.
+ * Una empresa sin estados en un caso que sí tiene estados calculados no participó en él (entró tarde)
+ * y ese caso no le suma ni le resta.</p>
+ *
+ * <p>Respaldo: si un caso cerrado todavía no tiene ningún estado FINAL (simulaciones anteriores a D2,
+ * o el cierre automático aún no pasó), se calcula al vuelo como antes.</p>
+ *
+ * <p>Un caso cuenta si se activó alguna vez y está cerrado: la simulación finalizó, ya pasó su fecha de fin
+ * o ya se activó un caso posterior (misma regla que el cálculo de estados).</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -34,6 +49,7 @@ public class ClasificacionService {
     private final EmpresaRepository empresaRepository;
     private final CasoRepository casoRepository;
     private final DecisionCasoRepository decisionCasoRepository;
+    private final EstadoFinancieroEmpresaRepository estadoRepository;
 
     /** El docente la ve en cualquier momento (vista previa mientras la simulación no termina). */
     public ClasificacionResponse paraDocente(Long idSimulacion, String correoDocente) {
@@ -59,15 +75,26 @@ public class ClasificacionService {
     ClasificacionResponse calcular(Simulacion simulacion, LocalDateTime ahora) {
         boolean finalizada = simulacion.getEstado() == EstadoSimulacion.FINALIZADA;
 
-        List<Caso> casos = casoRepository.findByIdSimulacion(simulacion.getId()).stream()
-                .filter(c -> c.getActivadoEn() != null)
-                .filter(c -> finalizada || ahora.isAfter(c.getFechaFin()))
-                .sorted(Comparator.comparing(Caso::getFechaInicio))
-                .toList();
+        List<Caso> jugados = OrdenCasos.ordenados(casoRepository.findByIdSimulacion(simulacion.getId()).stream()
+                .filter(c -> c.getActivadoEn() != null || c.getEstado() == EstadoCaso.ACTIVO)
+                .toList());
+        List<Caso> casos = new ArrayList<>();
+        for (int i = 0; i < jugados.size(); i++) {
+            Caso c = jugados.get(i);
+            if (finalizada || ahora.isAfter(c.getFechaFin()) || i < jugados.size() - 1) casos.add(c);
+        }
 
         if (casos.isEmpty()) {
             return new ClasificacionResponse(simulacion.getId(), simulacion.getNombre(), simulacion.getEstado(),
                     finalizada, 0, List.of());
+        }
+
+        // Estados FINAL guardados por caso y empresa (vacío = el caso se calcula al vuelo)
+        Map<Long, Map<Long, EstadoFinancieroEmpresa>> finalesPorCaso = new HashMap<>();
+        for (Caso c : casos) {
+            finalesPorCaso.put(c.getId(), estadoRepository.listarPorCaso(c.getId()).stream()
+                    .filter(e -> e.getMomento() == MomentoEstado.FINAL)
+                    .collect(Collectors.toMap(EstadoFinancieroEmpresa::getIdEmpresa, Function.identity(), (a, b) -> a)));
         }
 
         Map<Long, Map<Long, DecisionCaso>> decisionesPorCaso = new HashMap<>();
@@ -83,9 +110,17 @@ public class ClasificacionService {
             List<ResultadoCasoResponse> desglose = new ArrayList<>();
 
             for (Caso c : casos) {
-                DecisionCaso d = decisionesPorCaso.get(c.getId()).get(e.getId());
-                ResultadoCasoResponse r = d != null ? conDecision(c, d) : sinDecision(c);
-                if (d == null) sinDecision++;
+                Map<Long, EstadoFinancieroEmpresa> finales = finalesPorCaso.get(c.getId());
+                ResultadoCasoResponse r;
+                if (!finales.isEmpty()) {
+                    EstadoFinancieroEmpresa fin = finales.get(e.getId());
+                    if (fin == null) continue; // la empresa no participó en este caso
+                    r = desdeEstado(c, fin);
+                } else {
+                    DecisionCaso d = decisionesPorCaso.get(c.getId()).get(e.getId());
+                    r = d != null ? conDecision(c, d) : sinDecision(c);
+                }
+                if (!r.isDecidio()) sinDecision++;
                 acumulada = acumulada.add(r.getUtilidadDelCaso());
                 desglose.add(r);
             }
@@ -100,6 +135,20 @@ public class ClasificacionService {
 
         return new ClasificacionResponse(simulacion.getId(), simulacion.getNombre(), simulacion.getEstado(),
                 finalizada, casos.size(), filas);
+    }
+
+    /** Resultado del caso tomado del estado FINAL guardado de la empresa. */
+    private ResultadoCasoResponse desdeEstado(Caso c, EstadoFinancieroEmpresa fin) {
+        boolean decidio = fin.getOrigen() == OrigenEstado.DECISION;
+        String opcion = decidio ? c.getOpciones().stream()
+                .filter(o -> Objects.equals(o.getId(), fin.getIdOpcion()))
+                .map(OpcionCaso::getOpcion)
+                .findFirst().orElse(null) : null;
+        return new ResultadoCasoResponse(c.getId(), c.getNombreEmpresa(), c.getFechaFin(), decidio,
+                decidio ? fin.getIdOpcion() : null, opcion,
+                CalculadoraResultadoCaso.utilidadBase(c),
+                decidio ? null : CalculadoraResultadoCaso.porcentajePenalizacion(c),
+                fin.getEstado().utilidadNeta());
     }
 
     private ResultadoCasoResponse conDecision(Caso c, DecisionCaso d) {

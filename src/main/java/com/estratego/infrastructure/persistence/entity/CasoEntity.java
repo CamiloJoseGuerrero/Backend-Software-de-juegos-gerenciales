@@ -38,13 +38,13 @@ public class CasoEntity {
     @Column(name = "tipo", length = 100)
     private String tipo;
 
-    @Column(name = "activo_total", nullable = false, precision = 18, scale = 2)
+    @Column(name = "activo_total", precision = 18, scale = 2)
     private BigDecimal activoTotal;
 
-    @Column(name = "pasivo_total", nullable = false, precision = 18, scale = 2)
+    @Column(name = "pasivo_total", precision = 18, scale = 2)
     private BigDecimal pasivoTotal;
 
-    @Column(name = "patrimonio", nullable = false, precision = 18, scale = 2)
+    @Column(name = "patrimonio", precision = 18, scale = 2)
     private BigDecimal patrimonio;
 
     @Column(name = "utilidad_neta", nullable = false, precision = 18, scale = 2)

@@ -43,6 +43,7 @@ class ClasificacionServiceTest {
     @Mock private EmpresaRepository empresaRepository;
     @Mock private CasoRepository casoRepository;
     @Mock private DecisionCasoRepository decisionCasoRepository;
+    @Mock private EstadoFinancieroEmpresaRepository estadoRepository;
 
     @InjectMocks
     private ClasificacionService service;
@@ -195,5 +196,59 @@ class ClasificacionServiceTest {
         simulacion.setIdUsuarioCoordinador(1234L);
 
         assertThrows(IllegalArgumentException.class, () -> service.paraDocente(SIM_ID, DOCENTE));
+    }
+
+    // ---- D2: clasificación encadenada sobre los estados FINAL guardados ----
+
+    private static com.estratego.domain.model.financiero.EstadoFinancieroEmpresa estadoFinal(
+            Long idEmpresa, Long idCaso, com.estratego.domain.model.financiero.OrigenEstado origen,
+            Long idOpcion, String utilidad) {
+        EstadoFinanciero ef = new EstadoFinanciero();
+        ef.setVentasNetas(new BigDecimal(utilidad)); // el resto en 0: utilidad neta = ventas
+        return new com.estratego.domain.model.financiero.EstadoFinancieroEmpresa(null, idEmpresa, idCaso,
+                com.estratego.domain.model.financiero.MomentoEstado.FINAL, origen, idOpcion, ef, LocalDateTime.now());
+    }
+
+    @Test
+    void usaElEstadoFinalGuardadoYNoCuentaAQuienNoParticipo() {
+        Caso c1 = caso(7L, ahora.minusDays(1), ahora.minusDays(2));
+        when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c1));
+        when(estadoRepository.listarPorCaso(7L)).thenReturn(List.of(
+                estadoFinal(1L, 7L, com.estratego.domain.model.financiero.OrigenEstado.DECISION, 71L, "250000"),
+                estadoFinal(2L, 7L, com.estratego.domain.model.financiero.OrigenEstado.PENALIZACION, null, "92000")));
+
+        ClasificacionResponse r = service.paraDocente(SIM_ID, DOCENTE);
+
+        var filas = r.getClasificacion();
+        assertEquals(1L, filas.get(0).getIdEmpresa());
+        assertEquals(0, new BigDecimal("250000").compareTo(filas.get(0).getUtilidadAcumulada()));
+        var d1 = filas.get(0).getDesglose().get(0);
+        assertTrue(d1.isDecidio());
+        assertEquals(71L, d1.getIdOpcion());
+        assertEquals("Ampliar", d1.getOpcionElegida());
+        assertNull(d1.getPenalizacionPorcentaje());
+
+        var beta = filas.get(1);
+        assertEquals(2L, beta.getIdEmpresa());
+        assertEquals(1, beta.getCasosSinDecision());
+        assertEquals(0, new BigDecimal("8").compareTo(beta.getDesglose().get(0).getPenalizacionPorcentaje()));
+
+        var tardia = filas.get(2); // sin estados en el caso: entró tarde, el caso no le suma ni le resta
+        assertEquals(3L, tardia.getIdEmpresa());
+        assertEquals(0, BigDecimal.ZERO.compareTo(tardia.getUtilidadAcumulada()));
+        assertTrue(tardia.getDesglose().isEmpty());
+        assertEquals(0, tardia.getCasosSinDecision());
+    }
+
+    @Test
+    void unCasoCuentaComoCerradoCuandoYaSeActivoElSiguiente() {
+        Caso c1 = caso(7L, ahora.plusHours(5), ahora.minusHours(1));       // su fecha de fin no ha llegado
+        Caso c2 = caso(8L, ahora.plusDays(1), ahora.minusMinutes(10));     // pero ya se activó el siguiente
+        when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c2, c1));
+
+        ClasificacionResponse r = service.paraDocente(SIM_ID, DOCENTE);
+
+        assertEquals(1, r.getCasosConsiderados());
+        assertEquals(7L, r.getClasificacion().get(0).getDesglose().get(0).getIdCaso());
     }
 }
