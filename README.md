@@ -1,417 +1,236 @@
-# Estratego Backend - Sistema de Juegos Gerenciales
+# Estratego Backend — Sistema de Juegos Gerenciales
 
-## Descripción
-Backend del sistema de juegos gerenciales "Estratego", desarrollado con Spring Boot 3.2, Java 21, SQL Server y una arquitectura Clean/Hexagonal con DDD ligero.
+Backend del simulador de juegos gerenciales **Estratego**: el docente crea simulaciones con empresas y casos de decisión, los estudiantes (organizados en empresas con un líder) toman decisiones en cada caso, y el sistema calcula resultados financieros y la clasificación.
 
-## Estado Actual
-La autenticación está implementada y lista para integración con el frontend:
+**Stack:** Spring Boot 3.2.3 · Java 21 · PostgreSQL (Neon) · Spring Data JPA · Spring Security + JWT · Apache POI (Excel) · springdoc-openapi · Lombok · JUnit 5 + Mockito.
 
-✅ Login con JWT y BCrypt  
-✅ Registro de docentes con validación de contraseña  
-✅ Consulta de sesión autenticada  
-✅ Bloqueo temporal después de cinco intentos fallidos  
-✅ Validación de correos e identificaciones duplicadas  
-✅ Manejo global de errores y respuestas HTTP consistentes  
-✅ CORS y secretos configurables mediante variables de entorno  
-✅ Pruebas unitarias del servicio de autenticación  
-✅ Persistencia SQL Server con Spring Data JPA  
+> El contrato completo de la API para el frontend (requests, respuestas, errores y reglas) está en el documento **"API Estratego — Endpoints para frontend"**. Este README es la guía para trabajar en el backend.
 
-Pendiente para las siguientes etapas:
+---
 
-⏳ Gestión y carga masiva de estudiantes  
-⏳ Carga de empresas desde archivo Excel con información financiera  
-⏳ Motor de simulación y decisiones  
-⏳ Cálculos financieros, mercado e indicadores  
+## Estado actual
 
-## Próximas Etapas
+### Implementado
 
-### Etapa 2: Módulo de Autenticación (AUTH)
-- [x] Implementar `POST /api/auth/login`
-- [x] Implementar `POST /api/auth/registro-docente`
-- [x] Implementar `GET /api/auth/sesion`
+- **Autenticación**: login con JWT y BCrypt, registro de docentes, sesión actual, cambio de contraseña, bloqueo de 15 min tras 5 intentos fallidos.
+- **Estudiantes por docente**: carga masiva desde Excel, alta manual y vinculación de estudiantes que ya existen (cada docente ve solo los suyos).
+- **Simulaciones**: ciclo de vida `BORRADOR → PROGRAMADA → EN_CURSO → FINALIZADA`.
+- **Empresas e integrantes**: empresas `MULTIUSUARIO` / `MONOUSUARIO`, integrantes con departamento y un único líder por empresa.
+- **Casos de decisión** (caso = período): estado financiero de 19 partidas con validación de cuadre, opciones con impacto financiero (`porcentaje` / `monto`) sobre 6 rubros del estado de resultados, un solo caso activo por simulación y penalización para la empresa que no decide.
+- **Portal del estudiante**: sus simulaciones, su empresa, caso actual, decisión del líder (una por empresa y caso).
+- **Clasificación**: ranking por utilidad neta acumulada (docente y estudiante).
+- **Errores por campo**: los 400 traen `message` y una lista `errores[]` con `campo` y `mensaje`.
+- **Correo de credenciales** a estudiantes nuevos (apagado por defecto; ver configuración).
 
-### Etapa 3: Gestión de Estudiantes
-- [ ] Implementar `POST /api/docente/estudiantes/carga-masiva`
-- [ ] Implementar `GET /api/docente/estudiantes`
+### En curso — Arrastre del balance entre casos (D2)
 
-### Etapa 4+: Módulos del Simulador
-- [ ] Motor de simulación
-- [ ] Decisiones y estrategias
-- [ ] Cálculos financieros
-- [ ] Participación de mercado
-- [ ] Indicadores y resultados
+Cada empresa hereda su propio balance de un caso al siguiente.
 
-## Estructura del Proyecto
+| Pieza | Estado |
+|---|---|
+| Tabla `estado_financiero_empresa` (INICIAL / FINAL por empresa y caso) | ✅ |
+| Motor de arrastre (`domain/service/MotorArrastre`) | ✅ |
+| `esPrimerCaso` en los casos y validación del balance según la posición del caso | ✅ |
+| Cálculo y guardado de los estados durante el juego | ⏳ |
+| Endpoint del docente con estado inicial/final por empresa | ⏳ |
+| `financieroEmpresa` en `/estudiante/caso-actual` | ⏳ |
+| Clasificación encadenada sobre los estados guardados | ⏳ |
+
+Reglas aprobadas:
+
+1. Solo el **primer caso** de la simulación (el de `fechaInicioPartida` más temprana; en empate, el creado antes) define el balance: exige las 19 partidas y que cuadre. Los siguientes solo piden las 6 partidas del estado de resultados.
+2. Al cerrar un caso, la utilidad neta pasa a **utilidades retenidas** y a **efectivo**: el balance siempre cuadra. El resto del balance pasa igual.
+3. El estado de resultados de cada caso es el escenario que define el docente, sin impactos acumulados.
+4. Flujo operativo = utilidad neta; flujos de inversión y financiación = 0.
+
+Efectivo y utilidades retenidas pueden quedar negativos. Una empresa que entra a mitad de simulación empieza con el balance del docente del primer caso.
+
+### Pendiente
+
+- Boletín de factores de entorno por caso (D14: inflación, tasa de interés, tasa de cambio). Es solo informativo y no afecta el cálculo.
+- Retirar `/docente/equipos` y `/docente/partidas` (módulo anterior, reemplazado por empresas y casos) cuando el frontend confirme.
+- SMTP real y quitar `contrasenaGenerada` de las respuestas.
+- Despliegue fuera del PC (Render / Railway).
+
+---
+
+## Estructura
+
+Arquitectura hexagonal: el dominio no depende de Spring ni de JPA.
 
 ```
 src/main/java/com/estratego
-├── EstrategoApplication.java
-├── presentation/
-│   ├── controller/
-│   │   └── AuthController.java
-│   └── exception/
-│       ├── ApiError.java
-│       └── GlobalExceptionHandler.java
+├── presentation/          Controllers REST y manejo global de errores (ApiError, GlobalExceptionHandler)
 ├── application/
-│   ├── dto/
-│   │   ├── auth/
-│   │   │   ├── LoginRequest.java
-│   │   │   ├── LoginResponse.java
-│   │   │   ├── RegistroDocenteRequest.java
-│   │   │   ├── SesionResponse.java
-│   │   │   └── UsuarioResponse.java
-│   │   ├── docente/
-│   │   │   ├── CargaMasivaEstudiantesRequest.java
-│   │   │   ├── CargaMasivaResponse.java
-│   │   │   ├── ErrorCargaResponse.java
-│   │   │   └── EstudianteCargaRequest.java
-│   │   ├── decision/ (vacío)
-│   │   └── resultado/ (vacío)
+│   ├── dto/               auth, docente, estudiante, clasificacion
+│   ├── usecase/           Servicios de aplicación (CasoService, ClasificacionService, PortalEstudianteService, ...)
+│   ├── event/             Eventos (EstudiantesCargadosEvent → envío de correos)
 │   └── mapper/
-│       └── UsuarioMapper.java
 ├── domain/
-│   ├── model/
-│   │   ├── usuario/
-│   │   │   ├── Usuario.java
-│   │   │   └── Rol.java
-│   │   ├── empresa/ (vacío)
-│   │   ├── mercado/ (vacío)
-│   │   ├── periodo/ (vacío)
-│   │   ├── escenario/ (vacío)
-│   │   ├── decision/ (vacío)
-│   │   ├── indicador/ (vacío)
-│   │   └── financiero/ (vacío)
-│   ├── repository/
-│   │   └── UsuarioRepository.java
-│   ├── service/
-│   │   ├── MotorSimulacion.java
-│   │   ├── GeneradorAleatorio.java
-│   │   └── CalculadorParticipacionMercado.java
-│   └── strategy/
-│       ├── EstrategiaDecision.java
-│       ├── EstrategiaComercial.java
-│       ├── EstrategiaOperacional.java
-│       ├── EstrategiaAdministrativa.java
-│       ├── EstrategiaDecisionFactory.java
-│       ├── ProcesadorDecision.java
-│       └── DecisionCommand.java
+│   ├── model/             caso, empresa, integrante, simulacion, usuario, financiero, ...
+│   ├── repository/        Puertos (interfaces) de persistencia
+│   └── service/           Lógica pura: MotorArrastre, CalculadoraResultadoCaso, OrdenCasos
 └── infrastructure/
-    ├── persistence/
-    │   ├── entity/
-    │   │   └── UsuarioEntity.java
-    │   ├── repository/
-    │   │   └── UsuarioJpaRepository.java
-    │   └── adapter/
-    │       └── UsuarioRepositoryAdapter.java
-    ├── security/
-    │   ├── SecurityConfig.java
-    │   ├── JwtService.java
-    │   ├── JwtAuthenticationFilter.java
-    │   └── CustomUserDetailsService.java
-    ├── excel/ (vacío)
-    └── random/ (vacío)
+    ├── persistence/       entity / repository (Spring Data) / adapter (implementa los puertos)
+    ├── security/          SecurityConfig, JwtService, JwtAuthenticationFilter
+    ├── mail/              CredencialesEmailListener
+    └── config/            Fechas: zona America/Bogota y deserializador flexible
 
-src/main/resources
-├── application.yml
-└── application-dev.yml (opcional)
+db/
+├── migraciones/           Scripts SQL con fecha, en orden (ver "Base de datos")
+└── limpieza/              Limpieza de datos de prueba (termina en ROLLBACK: revisar antes de confirmar)
+
+pruebas/
+├── probar_api.ps1                  Prueba de punta a punta contra el backend corriendo
+├── probar_estudiantes_docente.ps1  Estudiantes por docente, alta manual y vinculación
+└── estudiantes_vincular.xlsx       Excel de ejemplo para la carga masiva
 ```
+
+Los paquetes `domain/model/{decision,escenario,indicador,mercado,periodo}`, `domain/strategy` y servicios como `MotorSimulacion` son esqueletos del diseño original, todavía sin uso.
+
+---
 
 ## Configuración
 
-### Variables de Entorno Requeridas
-```bash
-DB_HOST=IP_O_HOST_DE_LA_BASE_REMOTA
-DB_PORT=1433
-DB_NAME=estratego_db
-DB_USERNAME=tu_usuario
-DB_PASSWORD=tu_contraseña
-JWT_SECRET=una-clave-de-al-menos-32-bytes
-JWT_EXPIRATION=86400000  # 24 horas en milisegundos
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:4200
-```
-
-El backend no utiliza una base de datos local ni tiene valores predeterminados para `DB_HOST`, `DB_PORT` o `DB_NAME`. Debes usar los datos del servidor SQL Server remoto compartido. Si no defines `JWT_SECRET`, solo se utiliza una clave de desarrollo local; en producción debes definir siempre una clave propia y aleatoria.
-
-### Base de Datos
-- Sistema: SQL Server
-- Base de datos: `estratego_db`
-- Configuración en: `src/main/resources/application.yml`
-- `spring.jpa.hibernate.ddl-auto` está configurado como `validate`; el backend no modifica el esquema automáticamente.
-- `spring.sql.init.mode` está configurado como `never`; el archivo `data.sql` no se ejecuta automáticamente.
-
-## Compilación y Ejecución
-
 ### Requisitos
-- Java 21+
-- Maven 3.8+
-- SQL Server
 
-### Compilar
+- JDK **21** (el proyecto compila con `release 21`; no migrar a otra versión sin acordarlo con el equipo)
+- Maven 3.9+
+- Acceso a la base PostgreSQL del proyecto en Neon
+
+### Variables de entorno
+
+Se leen del entorno o de un archivo **`.env`** en la raíz (gracias a `spring-dotenv`). El `.env` está en `.gitignore`: **nunca lo subas ni compartas sus valores por chat**.
+
+| Variable | Obligatoria | Uso |
+|---|---|---|
+| `DB_URL` | Sí* | JDBC de PostgreSQL (`jdbc:postgresql://<host>/<db>?sslmode=require&currentSchema=public`) |
+| `DB_USERNAME` | Sí* | Usuario de la base |
+| `DB_PASSWORD` | **Sí** | Contraseña de la base |
+| `JWT_SECRET` | En producción | Clave aleatoria de 32+ bytes (sin ella se usa una clave solo para desarrollo) |
+| `JWT_EXPIRATION` | No | Duración del token en ms (por defecto 86400000 = 24 h) |
+| `CORS_ALLOWED_ORIGINS` | No | Orígenes del frontend separados por coma (por defecto `localhost:4200` y `localhost:3000`) |
+| `MAIL_ENABLED` | No | `true` para enviar las credenciales por correo (por defecto `false`) |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | Si `MAIL_ENABLED=true` | Cuenta SMTP (Gmail: contraseña de aplicación) |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_FROM` | No | SMTP (por defecto `smtp.gmail.com:587`) |
+| `FRONTEND_URL` | No | Enlace que va en los correos (por defecto `http://localhost:4200`) |
+| `APP_ZONA_HORARIA` | No | Zona para interpretar fechas con `Z` o desfase (por defecto `America/Bogota`) |
+| `DDL_AUTO` / `SHOW_SQL` | No | Por defecto `validate` / `false` |
+
+\* `application.yml` trae valores por defecto para la base compartida; pídele al equipo el `.env` (con la contraseña) por un canal privado.
+
+### Base de datos
+
+- `ddl-auto=validate`: **el backend no crea ni modifica tablas**. Si una entidad no coincide con la base, la app no arranca.
+- Cada cambio de esquema va en un script de `db/migraciones/` (`AAAA-MM-DD_descripcion.sql`, en una transacción, con consulta de verificación al final). Se ejecutan **a mano en Neon, en orden, antes de arrancar** el código que los necesita.
+- Migraciones actuales:
+
+| Script | Contenido |
+|---|---|
+| `2026-09-27_integrante_es_lider.sql` | Líder de empresa |
+| `2026-09-28_caso.sql` | Casos y opciones |
+| `2026-09-28b_caso_estado_y_decision.sql` | Estado del caso, asignación y `decision_caso` |
+| `2026-10-01_docente_estudiante.sql` | Vínculo docente ↔ estudiante |
+| `2026-10-02_caso_estado_resultados.sql` | Primeras partidas del estado de resultados |
+| `2026-10-02b_caso_modelo_financiero.sql` | Modelo de 19 partidas e impacto de opciones |
+| `2026-10-05_caso_activado_en.sql` | Fecha de primera activación del caso |
+| `2026-10-09_estado_financiero_empresa.sql` | Estados por empresa y caso (D2) |
+
+---
+
+## Compilar, probar y ejecutar
+
 ```bash
-mvn clean install
+mvn clean test          # pruebas unitarias (145 al 2026-10-09)
+mvn spring-boot:run     # http://localhost:8080
 ```
 
-### Ejecutar
+Perfil de depuración (muestra SQL y logs de seguridad):
+
 ```bash
-mvn spring-boot:run
+mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
 
-En PowerShell, define antes las variables de conexión al servidor remoto:
+Prueba de punta a punta con el backend corriendo (PowerShell):
 
 ```powershell
-$env:DB_HOST = "IP_O_HOST_DE_LA_BASE_REMOTA"
-$env:DB_PORT = "1433"
-$env:DB_NAME = "estratego_db"
-$env:DB_USERNAME = "sa"
-$env:DB_PASSWORD = "tu_contraseña_sql_server"
-$env:JWT_SECRET = "una-clave-aleatoria-de-minimo-32-caracteres"
-mvn spring-boot:run
+powershell -ExecutionPolicy Bypass -File .\pruebas\probar_api.ps1
+powershell -ExecutionPolicy Bypass -File .\pruebas\probar_estudiantes_docente.ps1
+# Contra otro servidor (p. ej. ngrok):  -Base "https://xxxx.ngrok-free.dev/api"
 ```
 
-El servidor estará disponible en `http://localhost:8080`
+Si la compilación falla con decenas de "cannot find symbol" sin haber cambiado código, probablemente otro proceso (la compilación automática de VS Code u OneDrive) está tocando `target/`. Cierra VS Code o espera a que termine y corre `mvn clean test`.
 
-## Endpoints de Autenticación
+Documentación interactiva: Swagger UI en `http://localhost:8080/swagger-ui.html` (OpenAPI JSON en `/api-docs`).
 
-| Método | Ruta | Acceso | Descripción |
-|---|---|---|---|
-| `POST` | `/api/auth/login` | Público | Valida credenciales y devuelve JWT |
-| `POST` | `/api/auth/registro-docente` | Público | Registra un docente y devuelve JWT |
-| `GET` | `/api/auth/sesion` | JWT | Devuelve el usuario de la sesión actual |
-| `POST` | `/api/docente/estudiantes/carga-masiva` | JWT de docente | Procesa un Excel y crea estudiantes |
+---
 
-El registro exige una contraseña de 8 a 72 caracteres con mayúscula, minúscula, número y símbolo. Después de cinco intentos fallidos para el mismo correo, los intentos se bloquean durante 15 minutos.
+## API (resumen)
 
-### Contrato de autenticación para Frontend
+Todas las rutas van bajo `/api`. Excepto login y registro, requieren `Authorization: Bearer <token>`. `/api/docente/**` exige rol `DOCENTE` y `/api/estudiante/**` exige rol `ESTUDIANTE`.
 
-#### Login
-
-`POST /api/auth/login`
-
-Headers:
-
-```http
-Content-Type: application/json
-```
-
-Request:
-
-```json
-{
-    "correo": "usuario@ejemplo.com",
-    "contrasena": "Password1!"
-}
-```
-
-Respuesta exitosa `200 OK`:
-
-```json
-{
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "usuario": {
-        "id": 1,
-        "nombre": "Ana Perez",
-        "correo": "usuario@ejemplo.com",
-        "numeroIdentificacion": "123456789",
-        "rol": "DOCENTE"
-    }
-}
-```
-
-El campo `rol` solo puede tener uno de estos valores:
-
-```text
-DOCENTE
-ESTUDIANTE
-```
-
-Frontend debe guardar el token y enviarlo en las solicitudes protegidas:
-
-```http
-Authorization: Bearer <token>
-```
-
-#### Sesión actual
-
-`GET /api/auth/sesion`
-
-Requiere el header `Authorization` y devuelve `200 OK`:
-
-```json
-{
-    "usuario": {
-        "id": 1,
-        "nombre": "Ana Perez",
-        "correo": "usuario@ejemplo.com",
-        "numeroIdentificacion": "123456789",
-        "rol": "DOCENTE"
-    }
-}
-```
-
-#### Registro de docente
-
-`POST /api/auth/registro-docente`
-
-Es un endpoint público para autorregistro. El request no recibe un campo `rol`: el backend asigna siempre `DOCENTE`. No existe un endpoint público para autorregistro de estudiantes.
-
-Request:
-
-```json
-{
-    "nombre": "Ana Perez",
-    "correo": "ana@ejemplo.com",
-    "numeroIdentificacion": "123456789",
-    "contrasena": "Password1!"
-}
-```
-
-Respuesta exitosa `201 Created`:
-
-```json
-{
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "usuario": {
-        "id": 1,
-        "nombre": "Ana Perez",
-        "correo": "ana@ejemplo.com",
-        "numeroIdentificacion": "123456789",
-        "rol": "DOCENTE"
-    }
-}
-```
-
-El correo y el número de identificación deben ser únicos. Si alguno ya existe, el backend responde `409 Conflict`.
-
-#### Errores del login
-
-Todas las respuestas de error usan esta estructura:
-
-```json
-{
-    "message": "Credenciales inválidas",
-    "status": 401,
-    "timestamp": "2026-09-07T12:00:00"
-}
-```
-
-| HTTP | Situación | `message` esperado |
-|---|---|---|
-| `400` | Correo vacío o inválido, o contraseña vacía | Mensaje de validación del campo |
-| `401` | Correo no registrado o contraseña incorrecta | `Credenciales inválidas` |
-| `401` | Token ausente, inválido o expirado en `/sesion` | Respuesta de Spring Security |
-| `429` | Más de cinco intentos fallidos en 15 minutos | `Demasiados intentos fallidos. Intenta nuevamente en 15 minutos` |
-| `500` | Error inesperado del servidor | `Ocurrió un error interno. Intenta nuevamente más tarde` |
-
-El frontend no debe interpretar el texto del nombre para determinar permisos; debe usar únicamente el valor exacto de `usuario.rol`.
-
-### Carga de empresas desde archivo
-
-La carga de estudiantes y la carga de empresas son procesos diferentes. El archivo empresarial deberá permitir crear una empresa con su información inicial, incluyendo estados de balance, activos, pasivos, ingresos y demás indicadores financieros definidos por el negocio.
-
-Esta funcionalidad todavía requiere acordar con el equipo el contrato del archivo antes de implementarse. La propuesta inicial es usar un libro `.xlsx` con hojas separadas para:
-
-- `empresa`: identificación y datos generales.
-- `balance`: activos, pasivos y patrimonio.
-- `resultados`: ingresos, costos, gastos y utilidad.
-- `flujo_caja`: entradas, salidas y saldo inicial.
-
-El backend deberá validar que las hojas y columnas requeridas existan, convertir los valores a tipos numéricos, rechazar datos inconsistentes y guardar toda la carga dentro de una transacción. La creación de la empresa deberá quedar asociada al docente autenticado que realizó la carga.
-
-No se debe reutilizar `/api/docente/estudiantes/carga-masiva` para este archivo, porque ese endpoint solo acepta las columnas `nombre`, `correo` y `numeroIdentificacion`.
-
-### Carga masiva de estudiantes
-
-`POST /api/docente/estudiantes/carga-masiva`
-
-Requiere un JWT con rol `DOCENTE` y un request `multipart/form-data` con el campo `archivo`. El archivo debe ser `.xlsx` y su primera fila debe contener encabezados. Las columnas deben estar en este orden:
-
-| Columna | Contenido |
+| Módulo | Rutas |
 |---|---|
-| A | `nombre` |
-| B | `correo` |
-| C | `numeroIdentificacion` |
+| Autenticación | `POST /auth/login`, `POST /auth/registro-docente`, `GET /auth/sesion`, `POST /auth/cambiar-contrasena` |
+| Estudiantes (docente) | `POST /docente/estudiantes/carga-masiva` (multipart, `.xlsx`), `POST /docente/estudiantes`, `GET /docente/estudiantes`, `GET /docente/estudiantes/{id}` |
+| Simulaciones | CRUD en `/docente/simulaciones`, más `POST …/{id}/programar`, `…/iniciar`, `…/finalizar` y `GET …/{id}/clasificacion` |
+| Empresas | `POST/GET /docente/simulaciones/{id}/empresas`, `GET/PUT/DELETE /docente/empresas/{id}` |
+| Integrantes | `/docente/empresas/{idEmpresa}/integrantes`: agregar, listar, actualizar, `PUT …/{idUsuario}/lider`, quitar |
+| Casos | `POST/GET /docente/casos`, `POST/GET /docente/simulaciones/{id}/casos`, `GET/PUT/DELETE /docente/casos/{id}`, `POST …/{id}/activar`, `GET …/{id}/decisiones` |
+| Portal estudiante | `GET /estudiante/simulaciones`, `GET /estudiante/empresas/{id}`, `GET /estudiante/simulaciones/{id}/casos`, `GET /estudiante/casos/{id}`, `GET /estudiante/caso-actual`, `POST /estudiante/decision`, `GET /estudiante/simulaciones/{id}/clasificacion` |
+| Legado (se retirará) | `/docente/equipos`, `/docente/partidas` |
 
-Ejemplo:
-
-```text
-nombre              correo                 numeroIdentificacion
-Ana Perez           ana@ejemplo.com        123456789
-Carlos Rodriguez    carlos@ejemplo.com     987654321
-```
-
-El backend crea cada usuario con rol `ESTUDIANTE`. La contraseña inicial se genera internamente con el patrón `USU-001-<numeroIdentificacion>` y se almacena únicamente como hash BCrypt. Por seguridad, la contraseña no se devuelve en la respuesta HTTP; el canal para entregarla al estudiante debe acordarse con el equipo antes de usar esta funcionalidad en producción.
-
-Respuesta `200 OK`:
+### Formato de errores
 
 ```json
 {
-    "creados": [
-        {
-            "id": 1,
-            "nombre": "Ana Perez",
-            "correo": "ana@ejemplo.com",
-            "numeroIdentificacion": "123456789",
-            "rol": "ESTUDIANTE"
-        }
-    ],
-    "errores": [
-        {
-            "fila": 3,
-            "correo": "ana@ejemplo.com",
-            "numeroIdentificacion": "123456789",
-            "mensaje": "El correo ya está registrado"
-        }
-    ]
+  "message": "El balance no cuadra: activo total 1050000, pasivo + patrimonio 1000000",
+  "status": 400,
+  "timestamp": "2026-10-09T15:00:00",
+  "errores": [
+    { "campo": "financiero", "mensaje": "El balance no cuadra: activo total 1050000, pasivo + patrimonio 1000000" }
+  ]
 }
 ```
 
-## Documentación de API
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/api-docs`
+`errores` solo aparece cuando el error se puede atribuir a campos (validaciones del body o reglas como el cuadre). `401` = token ausente o inválido; `403` = rol incorrecto; `409` = duplicado; `429` = demasiados intentos de login.
+
+### Convenciones del contrato
+
+- Los enums viajan en minúscula donde el frontend lo pidió (`estado` del caso: `borrador` | `activo`; `asignacionEquipos`; `tipo` del impacto: `porcentaje` | `monto`). Los demás van en mayúscula (`DOCENTE`, `EN_CURSO`, `MULTIUSUARIO`).
+- Las fechas `LocalDateTime` se interpretan en hora de Colombia. Si el frontend envía `Z` o un desfase, se convierte a America/Bogota.
+- Los totales financieros (`activoTotal`, `pasivoTotal`, `patrimonio`, `utilidadNeta`) los calcula el backend. Si el cliente los manda, se ignoran.
+
+---
+
+## Reglas de negocio clave
+
+- **Contraseñas** (registro y cambio): 8 a 72 caracteres, con mayúscula, minúscula, número y símbolo.
+- **Contraseña inicial del estudiante**: `Usu-001-<cédula>!`, guardada solo como hash BCrypt. Se envía por correo si `MAIL_ENABLED=true`.
+- **Casos**: solo se crean, editan o eliminan con la simulación en `BORRADOR` o `PROGRAMADA`, y nunca si ya tienen decisiones. No se activa un caso si alguna empresa con integrantes no tiene líder.
+- **Empresas**: `MONOUSUARIO` admite un solo integrante, que queda como líder.
+- **Clasificación**: cuenta solo los casos que se activaron alguna vez. La empresa que no decide recibe `penalizacionMax` % sobre la utilidad del caso. Las empresas empatadas comparten posición.
+
+---
 
 ## Seguridad
 
-- Nunca guardar `JWT_SECRET` ni `DB_PASSWORD` en el repositorio.
-- En producción, definir `JWT_SECRET` con una clave aleatoria de al menos 32 bytes.
-- Configurar `CORS_ALLOWED_ORIGINS` con los dominios reales del frontend.
-- Las contraseñas nunca se devuelven en los DTOs de respuesta.
-- El token JWT es stateless y se valida en cada solicitud protegida.
+- Nunca guardar en el repositorio `DB_PASSWORD`, `JWT_SECRET` ni la contraseña SMTP; usar `.env` o variables de entorno.
+- Si una credencial se expone (chat, captura, commit), hay que rotarla de inmediato.
+- En producción: `JWT_SECRET` propio y `CORS_ALLOWED_ORIGINS` con los dominios reales.
+- Las contraseñas nunca se devuelven en las respuestas, salvo `contrasenaGenerada` en la creación de estudiantes. Esa es una medida temporal hasta tener SMTP real.
 
-## Notas Importantes
+---
 
-1. **Archivos Vacíos**: Muchos archivos contienen solo comentarios TODO. Esto es intencional.
-2. **Patrones de Diseño**: La arquitectura está preparada para utilizar Strategy, Factory, Template Method y Command.
-3. **Seguridad**: JWT, BCrypt, CORS y bloqueo temporal de intentos ya están implementados.
-4. **Persistencia**: El patrón Repository aísla el dominio de la implementación JPA.
-5. **DTOs**: Están definidos con validaciones iniciales usando Jakarta Validation.
-6. **Convenciones**: El proyecto sigue convenciones de Clean Architecture y DDD.
+## Flujo de trabajo
 
-## Preguntas Pendientes
-- Diferencia entre ADMIN y DOCENTE
-- Columnas definitivas del Excel
-- Alcance del consecutivo de estudiantes
-- Cambio de contraseña en el primer login
-- Supervisión de decisiones por parte del docente
-- Quién dispara el cierre del período
-- Comparación entre empresas
-- Persistencia del valor aleatorio para reproducibilidad
-- Dependencias entre categorías de decisiones
+- Ramas: se trabaja en `feature/*` y se integra a `develop` por PR o merge.
+- Antes de subir: `mvn clean test` en verde y, si se tocó la API, `probar_api.ps1` contra el backend corriendo.
+- Cambios de esquema: la migración va en el mismo commit que el código que la necesita.
+- Los scripts `.ps1` están en UTF-8 con BOM y CRLF: mantener esa codificación al editarlos.
 
-Estas preguntas deberán ser respondidas por el cliente antes de implementar los módulos correspondientes.
-
-## Pruebas
-
-Ejecutar todas las pruebas con:
-
-```bash
-mvn test
-```
-
-Las pruebas unitarias actuales cubren login exitoso, credenciales inválidas y registro de docentes.
+---
 
 ## Autores
-Desarrollado como parte del proyecto Estratego - Sistema de Juegos Gerenciales
 
-## Licencia
-Uso interno
-
+Proyecto Estratego — Sistema de Juegos Gerenciales. Uso interno.
