@@ -5,10 +5,14 @@ import com.estratego.application.dto.docente.ActualizarSimulacionRequest;
 import com.estratego.application.dto.docente.CrearSimulacionRequest;
 import com.estratego.application.dto.docente.SimulacionResponse;
 import com.estratego.application.usecase.ClasificacionService;
+import com.estratego.application.usecase.ExportarSimulacionService;
 import com.estratego.application.usecase.SimulacionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -24,6 +28,21 @@ public class SimulacionController {
 
     private final SimulacionService simulacionService;
     private final ClasificacionService clasificacionService;
+    private final ExportarSimulacionService exportarSimulacionService;
+
+    /** Resultados en Excel: clasificación, estados por empresa (con indicadores) y decisiones. */
+    @GetMapping("/{id}/exportar")
+    public ResponseEntity<byte[]> exportar(
+            @PathVariable Long id,
+            Authentication authentication) {
+        ExportarSimulacionService.Archivo archivo = exportarSimulacionService.exportar(id, authentication.getName());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(archivo.nombre()).build().toString())
+                .body(archivo.contenido());
+    }
 
     /** Utilidad neta acumulada por empresa (vista previa hasta que la simulación finalice). */
     @GetMapping("/{id}/clasificacion")

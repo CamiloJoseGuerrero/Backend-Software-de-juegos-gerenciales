@@ -96,7 +96,7 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(List.of("*"));
 
 
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Type", "Content-Disposition"));
 
 
         // true: el front puede usar withCredentials / credentials:"include" sin que el navegador

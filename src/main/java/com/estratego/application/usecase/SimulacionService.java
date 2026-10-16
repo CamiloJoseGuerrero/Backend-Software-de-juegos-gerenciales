@@ -40,6 +40,10 @@ public class SimulacionService {
     private final IntegranteRepository integranteRepository;
     private final DecisionCasoRepository decisionCasoRepository;
 
+    /** Último aviso de "no arranca" por simulación, para no repetirlo en el log cada minuto. */
+    private final java.util.Map<Long, List<ValidacionException.Problema>> avisosNoArranca =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     @Transactional
     public SimulacionResponse crear(CrearSimulacionRequest request, String correoCoordinador) {
         Long idCoordinador = resolverCoordinadorId(correoCoordinador);
@@ -158,9 +162,13 @@ public class SimulacionService {
                 // Si después de programarla quitaron casos o empresas, no arranca hasta que se corrija
                 List<ValidacionException.Problema> problemas = problemasParaArrancar(s);
                 if (!problemas.isEmpty()) {
-                    log.warn("Simulación {} no arranca: {}", s.getId(), problemas);
+                    // Solo se avisa la primera vez (o si cambian los problemas)
+                    if (!problemas.equals(avisosNoArranca.put(s.getId(), problemas))) {
+                        log.warn("Simulación {} no arranca: {}", s.getId(), problemas);
+                    }
                     continue;
                 }
+                avisosNoArranca.remove(s.getId());
                 s.setEstado(EstadoSimulacion.EN_CURSO);
                 simulacionRepository.save(s);
                 cambiadas.add(s.getId());

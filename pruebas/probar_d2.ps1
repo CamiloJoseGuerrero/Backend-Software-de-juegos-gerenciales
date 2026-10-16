@@ -154,6 +154,18 @@ Check "2.º Empresa Multi con 298.000" ($filas[1].idEmpresa -eq $idA -and $filas
 Check "el desglose de Multi: decidió el caso 1 y fue penalizada en el caso 2" ($filas[1].desglose[0].decidio -and -not $filas[1].desglose[1].decidio -and $filas[1].desglose[1].penalizacionPorcentaje -eq 10)
 
 # ---------------------------------------------------------------------
+Write-Host "`n5. Exportar a Excel" -ForegroundColor Cyan
+$archivo = Join-Path $env:TEMP "estratego-simulacion-$idSim.xlsx"
+try {
+    $rx = Invoke-WebRequest -Uri "$Base/docente/simulaciones/$idSim/exportar" -Headers @{ Authorization = "Bearer $tDoc"; "ngrok-skip-browser-warning" = "true" } -UseBasicParsing -OutFile $archivo -PassThru
+    $tam = (Get-Item $archivo).Length
+    Check "descarga el .xlsx ($tam bytes)" ($rx.StatusCode -eq 200 -and $tam -gt 1000 -and $rx.Headers["Content-Disposition"] -like "*estratego-simulacion-$idSim.xlsx*") "status $($rx.StatusCode)"
+    Write-Host "          guardado en $archivo (ábrelo para revisar las 3 hojas)" -ForegroundColor DarkGray
+} catch {
+    Check "descarga el .xlsx" $false $_.Exception.Message
+}
+
+# ---------------------------------------------------------------------
 Write-Host "`n------------------------------------------------------------"
 $color = if ($script:fallos -eq 0) { "Green" } else { "Yellow" }
 Write-Host ("Resultado: {0} OK, {1} fallas   (simulación de prueba id {2})" -f $script:ok, $script:fallos, $idSim) -ForegroundColor $color
