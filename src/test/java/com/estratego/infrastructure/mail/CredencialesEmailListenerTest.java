@@ -65,4 +65,30 @@ class CredencialesEmailListenerTest {
         assertDoesNotThrow(() -> listener(true).enviarCredenciales(evento));
         verify(sender, times(2)).send(any(SimpleMailMessage.class));
     }
+
+    @Test
+    void noEnviaADominiosDePrueba() {
+        when(provider.getIfAvailable()).thenReturn(sender);
+        EstudiantesCargadosEvent mezcla = new EstudiantesCargadosEvent(List.of(
+                new Credencial("Prueba", "x@estratego-test.local", "x", "Usu-001-1!"),
+                new Credencial("Ejemplo", "y@example.com", "y", "Usu-001-2!"),
+                new Credencial("Real", "real@unicolombo.edu.co", "real", "Usu-001-3!")));
+
+        listener(true).enviarCredenciales(mezcla);
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(sender, times(1)).send(captor.capture());
+        assertArrayEquals(new String[]{"real@unicolombo.edu.co"}, captor.getValue().getTo());
+    }
+
+    @Test
+    void reconoceLosDominiosDePrueba() {
+        for (String c : List.of("a@b.local", "a@algo.test", "a@x.example", "a@x.invalid", "a@localhost",
+                "a@example.com", "a@sub.example.org", "sin-arroba", "a@")) {
+            assertTrue(CredencialesEmailListener.esDominioDePrueba(c), c);
+        }
+        for (String c : List.of("ana@test.com", "a@gmail.com", "a@unicolombo.edu.co", "a@correo.edu.co", "a@outlook.com")) {
+            assertFalse(CredencialesEmailListener.esDominioDePrueba(c), c);
+        }
+    }
 }

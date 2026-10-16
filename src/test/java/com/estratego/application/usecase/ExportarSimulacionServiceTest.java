@@ -84,7 +84,9 @@ class ExportarSimulacionServiceTest {
                 new Empresa(1L, SIM, "EMP-001", "Alfa", null, TipoJugador.MULTIUSUARIO, EstadoEmpresa.ACTIVA)));
         when(estadoRepository.listarPorCaso(7L)).thenReturn(List.of(
                 new EstadoFinancieroEmpresa(2L, 1L, 7L, MomentoEstado.FINAL, OrigenEstado.DECISION, 71L, balance(), null),
-                new EstadoFinancieroEmpresa(1L, 1L, 7L, MomentoEstado.INICIAL, OrigenEstado.DOCENTE, null, balance(), null)));
+                new EstadoFinancieroEmpresa(1L, 1L, 7L, MomentoEstado.INICIAL, OrigenEstado.DOCENTE, null, balance(), null),
+                new EstadoFinancieroEmpresa(3L, 2L, 7L, MomentoEstado.FINAL, OrigenEstado.PENALIZACION, null, balance(), null,
+                        bd("22.58"))));
         when(decisionCasoRepository.findByIdCaso(7L)).thenReturn(List.of(
                 new DecisionCaso(1L, 7L, 1L, 71L, 20L, LocalDateTime.of(2026, 10, 20, 9, 30))));
         when(usuarioRepository.findById(20L)).thenReturn(Optional.of(
@@ -110,7 +112,8 @@ class ExportarSimulacionServiceTest {
             assertEquals(200000, est.getRow(1).getCell(5).getNumericCellValue());   // efectivo
             assertEquals(1000000, est.getRow(1).getCell(24).getNumericCellValue()); // activo total
             assertEquals(2.4, est.getRow(1).getCell(28).getNumericCellValue(), 1e-9); // razón corriente
-            assertNull(est.getRow(3)); // el caso nunca activado no aparece
+            assertEquals("penalizacion", est.getRow(3).getCell(4).getStringCellValue()); // EMP-002 después de EMP-001
+            assertNull(est.getRow(4)); // el caso nunca activado no aparece
 
             Sheet dec = wb.getSheet("Decisiones");
             assertEquals("EMP-001", dec.getRow(1).getCell(1).getStringCellValue()); // ordenadas por código
@@ -118,6 +121,8 @@ class ExportarSimulacionServiceTest {
             assertEquals("Ampliar", dec.getRow(1).getCell(4).getStringCellValue());
             assertEquals("Ana Pérez", dec.getRow(1).getCell(6).getStringCellValue());
             assertEquals("No", dec.getRow(2).getCell(3).getStringCellValue());
+            assertEquals(22.58, dec.getRow(2).getCell(8).getNumericCellValue(), 1e-9); // % sorteado
+            assertNull(dec.getRow(1).getCell(8)); // quien decidió no tiene penalización
         }
         verify(estadoRepository, never()).listarPorCaso(8L);
     }

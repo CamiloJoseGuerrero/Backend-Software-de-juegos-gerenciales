@@ -162,7 +162,8 @@ public class ExportarSimulacionService {
 
     private void hojaDecisiones(Workbook wb, Estilos e, List<Caso> casos, List<Empresa> empresas) {
         Sheet s = wb.createSheet("Decisiones");
-        encabezado(s.createRow(0), e, "Caso", "Código", "Empresa", "Decidió", "Opción elegida", "Resultado", "Decidida por", "Fecha");
+        encabezado(s.createRow(0), e, "Caso", "Código", "Empresa", "Decidió", "Opción elegida", "Resultado", "Decidida por",
+                "Fecha", "Penalización (%)");
         Map<Long, String> nombres = new HashMap<>();
         int r = 1;
         for (Caso caso : casos) {
@@ -170,6 +171,11 @@ public class ExportarSimulacionService {
                     .collect(Collectors.toMap(DecisionCaso::getIdEmpresa, Function.identity(), (a, b) -> a));
             Map<Long, OpcionCaso> opciones = caso.getOpciones().stream()
                     .collect(Collectors.toMap(OpcionCaso::getId, Function.identity(), (a, b) -> a));
+            // % sorteado de cada empresa penalizada en este caso (estado FINAL)
+            Map<Long, BigDecimal> penalizacion = estadoRepository.listarPorCaso(caso.getId()).stream()
+                    .filter(x -> x.getMomento() == MomentoEstado.FINAL && x.getPenalizacionPorcentaje() != null)
+                    .collect(Collectors.toMap(EstadoFinancieroEmpresa::getIdEmpresa,
+                            EstadoFinancieroEmpresa::getPenalizacionPorcentaje, (a, b) -> a));
             for (Empresa em : empresas) {
                 DecisionCaso d = porEmpresa.get(em.getId());
                 Row row = s.createRow(r++);
@@ -184,10 +190,12 @@ public class ExportarSimulacionService {
                     texto(row, 6, nombres.computeIfAbsent(d.getIdUsuario(), id ->
                             usuarioRepository.findById(id).map(u -> u.getNombre()).orElse("")), e.texto);
                     texto(row, 7, fecha(d.getFechaDecision()), e.texto);
+                } else {
+                    razon(row, 8, penalizacion.get(em.getId()), e.razon); // vacía si aún no se cerró el caso
                 }
             }
         }
-        anchos(s, 28, 11, 24, 9, 30, 36, 26, 17);
+        anchos(s, 28, 11, 24, 9, 30, 36, 26, 17, 16);
         s.createFreezePane(0, 1);
     }
 
