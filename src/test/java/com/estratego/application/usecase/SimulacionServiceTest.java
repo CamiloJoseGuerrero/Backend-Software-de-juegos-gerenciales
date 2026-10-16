@@ -37,6 +37,11 @@ class SimulacionServiceTest {
     @Mock
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
+    @Mock private com.estratego.domain.repository.CasoRepository casoRepository;
+    @Mock private com.estratego.domain.repository.EmpresaRepository empresaRepository;
+    @Mock private com.estratego.domain.repository.IntegranteRepository integranteRepository;
+    @Mock private com.estratego.domain.repository.DecisionCasoRepository decisionCasoRepository;
+
     @InjectMocks
     private SimulacionService simulacionService;
 
@@ -88,6 +93,7 @@ class SimulacionServiceTest {
                 LocalDate.now().plusDays(1), LocalDate.now().plusDays(30),
                 EstadoSimulacion.BORRADOR);
 
+        simulacionLista(1L, true);
         when(simulacionRepository.findById(1L)).thenReturn(Optional.of(simulacion));
         when(simulacionRepository.save(any(Simulacion.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -148,5 +154,105 @@ class SimulacionServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> simulacionService.obtener(1L, CORREO_COORDINADOR));
+    }
+
+    // ---- Simulación lista para jugarse: 1 caso con balance que cuadra y 1 empresa con líder ----
+
+    private static com.estratego.domain.model.caso.Caso casoListo(Long idSim) {
+        com.estratego.domain.model.caso.Caso c = new com.estratego.domain.model.caso.Caso();
+        c.setId(idSim * 100);
+        c.setIdSimulacion(idSim);
+        c.setNombreEmpresa("Caso de " + idSim);
+        c.setFechaInicio(java.time.LocalDateTime.of(2026, 10, 20, 8, 0));
+        c.setFinanciero(new com.estratego.domain.model.financiero.EstadoFinanciero(
+                new java.math.BigDecimal("200000"), new java.math.BigDecimal("150000"), new java.math.BigDecimal("250000"),
+                new java.math.BigDecimal("350000"), new java.math.BigDecimal("50000"),
+                new java.math.BigDecimal("150000"), new java.math.BigDecimal("100000"), new java.math.BigDecimal("150000"),
+                new java.math.BigDecimal("400000"), new java.math.BigDecimal("100000"),
+                new java.math.BigDecimal("800000"), new java.math.BigDecimal("500000"), new java.math.BigDecimal("80000"),
+                new java.math.BigDecimal("60000"), new java.math.BigDecimal("20000"), new java.math.BigDecimal("40000"),
+                new java.math.BigDecimal("120000"), new java.math.BigDecimal("-80000"), new java.math.BigDecimal("-20000")));
+        return c;
+    }
+
+    private void simulacionLista(Long idSim, boolean conLider) {
+        org.mockito.Mockito.lenient().when(casoRepository.findByIdSimulacion(idSim)).thenReturn(List.of(casoListo(idSim)));
+        org.mockito.Mockito.lenient().when(empresaRepository.findByIdSimulacion(idSim)).thenReturn(List.of(
+                new com.estratego.domain.model.empresa.Empresa(idSim * 10, idSim, "EMP-001", "Alfa", null,
+                        com.estratego.domain.model.empresa.TipoJugador.MULTIUSUARIO,
+                        com.estratego.domain.model.empresa.EstadoEmpresa.ACTIVA)));
+        org.mockito.Mockito.lenient().when(integranteRepository.findByIdEmpresa(idSim * 10)).thenReturn(List.of(
+                new com.estratego.domain.model.integrante.Integrante(1L, idSim * 10, 20L,
+                        com.estratego.domain.model.integrante.Departamento.COMERCIAL, conLider)));
+    }
+
+    @Test
+    void programarRechazaUnaSimulacionIncompletaConTodosLosProblemas() {
+        Simulacion simulacion = new Simulacion(1L, COORDINADOR_ID, "Curso",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), EstadoSimulacion.BORRADOR);
+        when(simulacionRepository.findById(1L)).thenReturn(Optional.of(simulacion));
+        when(casoRepository.findByIdSimulacion(1L)).thenReturn(List.of());
+        when(empresaRepository.findByIdSimulacion(1L)).thenReturn(List.of());
+
+        ValidacionException ex = assertThrows(ValidacionException.class,
+                () -> simulacionService.programar(1L, CORREO_COORDINADOR));
+
+        assertEquals("La simulación no está lista para programarse", ex.getMessage());
+        assertEquals(List.of(
+                new ValidacionException.Problema("casos", "La simulación no tiene casos"),
+                new ValidacionException.Problema("empresas", "Ninguna empresa tiene integrantes")), ex.getProblemas());
+        org.mockito.Mockito.verify(simulacionRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void programarRechazaEmpresasSinLiderYPrimerCasoQueNoCuadra() {
+        Simulacion simulacion = new Simulacion(1L, COORDINADOR_ID, "Curso",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), EstadoSimulacion.BORRADOR);
+        when(simulacionRepository.findById(1L)).thenReturn(Optional.of(simulacion));
+        simulacionLista(1L, false);
+        com.estratego.domain.model.caso.Caso noCuadra = casoListo(1L);
+        noCuadra.getFinanciero().setEfectivo(new java.math.BigDecimal("999999"));
+        when(casoRepository.findByIdSimulacion(1L)).thenReturn(List.of(noCuadra));
+
+        ValidacionException ex = assertThrows(ValidacionException.class,
+                () -> simulacionService.programar(1L, CORREO_COORDINADOR));
+
+        assertEquals(2, ex.getProblemas().size());
+        assertEquals("El primer caso («Caso de 1») no tiene un balance inicial completo que cuadre",
+                ex.getProblemas().get(0).mensaje());
+        assertEquals("Estas empresas no tienen líder: EMP-001 (Alfa)", ex.getProblemas().get(1).mensaje());
+    }
+
+    @Test
+    void desprogramarVuelveABorrador() {
+        Simulacion simulacion = new Simulacion(1L, COORDINADOR_ID, "Curso",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), EstadoSimulacion.PROGRAMADA);
+        when(simulacionRepository.findById(1L)).thenReturn(Optional.of(simulacion));
+        when(casoRepository.findByIdSimulacion(1L)).thenReturn(List.of(casoListo(1L)));
+        when(simulacionRepository.save(any(Simulacion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertEquals(EstadoSimulacion.BORRADOR, simulacionService.desprogramar(1L, CORREO_COORDINADOR).getEstado());
+    }
+
+    @Test
+    void desprogramarRechazaSiYaHayDecisiones() {
+        Simulacion simulacion = new Simulacion(1L, COORDINADOR_ID, "Curso",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), EstadoSimulacion.PROGRAMADA);
+        when(simulacionRepository.findById(1L)).thenReturn(Optional.of(simulacion));
+        when(casoRepository.findByIdSimulacion(1L)).thenReturn(List.of(casoListo(1L)));
+        when(decisionCasoRepository.existsByIdCaso(100L)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> simulacionService.desprogramar(1L, CORREO_COORDINADOR));
+        assertEquals("La simulación ya tiene decisiones de empresas; no se puede desprogramar", ex.getMessage());
+    }
+
+    @Test
+    void desprogramarSoloDesdeProgramada() {
+        Simulacion simulacion = new Simulacion(1L, COORDINADOR_ID, "Curso",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), EstadoSimulacion.BORRADOR);
+        when(simulacionRepository.findById(1L)).thenReturn(Optional.of(simulacion));
+
+        assertThrows(IllegalArgumentException.class, () -> simulacionService.desprogramar(1L, CORREO_COORDINADOR));
     }
 }

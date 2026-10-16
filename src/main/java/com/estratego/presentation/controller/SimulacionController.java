@@ -68,6 +68,13 @@ public class SimulacionController {
         return ResponseEntity.ok(simulacionService.programar(id, authentication.getName()));
     }
 
+    @PostMapping("/{id}/desprogramar")
+    public ResponseEntity<SimulacionResponse> desprogramar(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(simulacionService.desprogramar(id, authentication.getName()));
+    }
+
     @PostMapping("/{id}/iniciar")
     public ResponseEntity<SimulacionResponse> iniciar(
             @PathVariable Long id,

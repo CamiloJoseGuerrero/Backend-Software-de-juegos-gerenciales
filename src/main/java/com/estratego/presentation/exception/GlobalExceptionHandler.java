@@ -1,6 +1,7 @@
 package com.estratego.presentation.exception;
 
 import com.estratego.application.usecase.CampoInvalidoException;
+import com.estratego.application.usecase.ValidacionException;
 import com.estratego.application.usecase.InvalidCredentialsException;
 import com.estratego.application.usecase.UsuarioDuplicadoException;
 import com.estratego.application.usecase.CuentaBloqueadaException;
@@ -83,6 +84,19 @@ public class GlobalExceptionHandler {
     }
 
     /** Regla de negocio atribuible a un campo (p. ej. el balance no cuadra → "financiero"). */
+    @ExceptionHandler(ValidacionException.class)
+    public ResponseEntity<ApiError> handleValidacion(ValidacionException ex, WebRequest request) {
+        ApiError apiError = new ApiError(
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME),
+                ex.getProblemas().stream()
+                        .map(p -> new ApiError.ErrorCampo(p.campo(), p.mensaje()))
+                        .toList()
+        );
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(CampoInvalidoException.class)
     public ResponseEntity<ApiError> handleCampoInvalido(CampoInvalidoException ex, WebRequest request) {
         ApiError apiError = new ApiError(
