@@ -147,7 +147,8 @@ public class ClasificacionService {
         return new ResultadoCasoResponse(c.getId(), c.getNombreEmpresa(), c.getFechaFin(), decidio,
                 decidio ? fin.getIdOpcion() : null, opcion,
                 CalculadoraResultadoCaso.utilidadBase(c),
-                decidio ? null : CalculadoraResultadoCaso.porcentajePenalizacion(c),
+                decidio ? null : (fin.getPenalizacionPorcentaje() != null
+                        ? fin.getPenalizacionPorcentaje() : CalculadoraResultadoCaso.porcentajePenalizacion(c)),
                 fin.getEstado().utilidadNeta());
     }
 

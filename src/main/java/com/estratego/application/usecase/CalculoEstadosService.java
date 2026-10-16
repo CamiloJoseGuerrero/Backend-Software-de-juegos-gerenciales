@@ -12,6 +12,7 @@ import com.estratego.domain.model.financiero.OrigenEstado;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.*;
+import com.estratego.domain.service.GeneradorAleatorio;
 import com.estratego.domain.service.MotorArrastre;
 import com.estratego.domain.service.OrdenCasos;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,9 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li><b>INICIAL</b>: se siembra mientras el caso está abierto. Si la empresa tiene FINAL del caso anterior,
  *       lo hereda; si no (primer caso o empresa que entró tarde), parte del balance del docente.</li>
- *   <li><b>FINAL</b>: al cerrarse el caso, con la decisión de la empresa o con la penalización si no decidió.</li>
+ *   <li><b>FINAL</b>: al cerrarse el caso, con la decisión de la empresa o con la penalización si no decidió.
+ *       El % de penalización se sortea por empresa entre la mínima y la máxima del caso, una sola vez,
+ *       y queda guardado en el estado.</li>
  *   <li>Una empresa que no existía mientras un caso estuvo abierto no recibe estados de ese caso:
  *       empieza en el primer caso abierto en que aparece. Se reconoce porque las demás empresas sí quedaron
  *       sembradas en ese caso y ella no (ni decidió en él).</li>
@@ -56,6 +59,7 @@ public class CalculoEstadosService {
     private final DecisionCasoRepository decisionCasoRepository;
     private final EstadoFinancieroEmpresaRepository estadoRepository;
     private final Clock clock;
+    private final GeneradorAleatorio generadorAleatorio;
 
     /** Cuántos estados se crearon en una pasada. */
     public record Resultado(int iniciales, int finales) {
@@ -161,10 +165,7 @@ public class CalculoEstadosService {
                             .get(empresa.getId());
                     fin = estadoRepository.guardar(d != null
                             ? conDecision(empresa, caso, inicial, d, ahora)
-                            : new EstadoFinancieroEmpresa(null, empresa.getId(), caso.getId(), MomentoEstado.FINAL,
-                                    OrigenEstado.PENALIZACION, null,
-                                    MotorArrastre.finalPenalizado(inicial.getEstado(), caso.getPenalizacionMax()),
-                                    ahora));
+                            : penalizado(empresa, caso, inicial, ahora));
                     finales++;
                 }
                 finalAnterior = fin.getEstado();
@@ -187,6 +188,15 @@ public class CalculoEstadosService {
                 OrigenEstado.DECISION, d.getIdOpcion(),
                 MotorArrastre.finalConDecision(inicial.getEstado(), opcion != null ? opcion.getImpacto() : null),
                 ahora);
+    }
+
+    /** Sorteo único por empresa entre penalizacionMin y penalizacionMax del caso. */
+    private EstadoFinancieroEmpresa penalizado(Empresa empresa, Caso caso, EstadoFinancieroEmpresa inicial,
+                                               LocalDateTime ahora) {
+        java.math.BigDecimal porcentaje = generadorAleatorio.entre(caso.getPenalizacionMin(), caso.getPenalizacionMax());
+        return new EstadoFinancieroEmpresa(null, empresa.getId(), caso.getId(), MomentoEstado.FINAL,
+                OrigenEstado.PENALIZACION, null,
+                MotorArrastre.finalPenalizado(inicial.getEstado(), porcentaje), ahora, porcentaje);
     }
 
     private Map<Long, DecisionCaso> decisionesPorEmpresa(Long idCaso) {

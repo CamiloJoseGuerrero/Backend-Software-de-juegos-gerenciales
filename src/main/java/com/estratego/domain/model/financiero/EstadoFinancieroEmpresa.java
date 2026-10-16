@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -25,4 +26,11 @@ public class EstadoFinancieroEmpresa {
     private Long idOpcion;
     private EstadoFinanciero estado;
     private LocalDateTime calculadoEn;
+    /** % sorteado entre la penalización mínima y máxima del caso; solo cuando origen = PENALIZACION. */
+    private BigDecimal penalizacionPorcentaje;
+
+    public EstadoFinancieroEmpresa(Long id, Long idEmpresa, Long idCaso, MomentoEstado momento, OrigenEstado origen,
+                                   Long idOpcion, EstadoFinanciero estado, LocalDateTime calculadoEn) {
+        this(id, idEmpresa, idCaso, momento, origen, idOpcion, estado, calculadoEn, null);
+    }
 }

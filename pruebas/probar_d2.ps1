@@ -137,8 +137,10 @@ $monoF = @($filas | Where-Object { $_.idEmpresa -eq $idM })[0]
 Check "ahora cuenta 1 caso" ($cl.Body.casosConsiderados -eq 1) "casos $($cl.Body.casosConsiderados)"
 # Multi: ventas 920.000 − 500.000 − 80.000 − 60.000 − 50.000 − 40.000 = 190.000
 Check "Multi 190.000 en el caso 1 (decisión)" ($multi.utilidadAcumulada -eq 190000) "Multi $($multi.utilidadAcumulada)"
-# Mono: 100.000 − 8 % = 92.000
-Check "Mono 92.000 en el caso 1 (penalizada 8 %)" ($monoF.utilidadAcumulada -eq 92000 -and $monoF.casosSinDecision -eq 1) "Mono $($monoF.utilidadAcumulada)"
+# Mono: 100.000 − p % con p sorteado entre 2 y 8 (se guarda y no cambia)
+$p1 = [decimal]$monoF.desglose[0].penalizacionPorcentaje
+$u1Mono = 100000 - 1000 * $p1
+Check "Mono penalizada con un % sorteado entre 2 y 8 ($p1 %)" ($p1 -ge 2 -and $p1 -le 8 -and [math]::Abs([decimal]$monoF.utilidadAcumulada - $u1Mono) -lt 0.01 -and $monoF.casosSinDecision -eq 1) "Mono $($monoF.utilidadAcumulada), p $p1"
 
 # ---------------------------------------------------------------------
 Write-Host "`n4. Se juega el caso 2 y se finaliza" -ForegroundColor Cyan
@@ -147,11 +149,15 @@ Esperar (Api Post "/docente/simulaciones/$idSim/finalizar" $tDoc) 200 "finalizar
 $cl = Api Get "/docente/simulaciones/$idSim/clasificacion" $tDoc
 $filas = @($cl.Body.clasificacion)
 Check "definitiva con 2 casos" ($cl.Body.definitiva -and $cl.Body.casosConsiderados -eq 2) "casos $($cl.Body.casosConsiderados)"
-# Mono: 92.000 + (990.000 − 550.000 − 90.000 − 70.000 − 20.000 − 50.000 = 210.000) = 302.000
-# Multi: 190.000 + (120.000 − 10 % = 108.000) = 298.000
-Check "1.º Empresa Mono con 302.000" ($filas[0].idEmpresa -eq $idM -and $filas[0].utilidadAcumulada -eq 302000) "$($filas[0].nombreEmpresa) $($filas[0].utilidadAcumulada)"
-Check "2.º Empresa Multi con 298.000" ($filas[1].idEmpresa -eq $idA -and $filas[1].utilidadAcumulada -eq 298000) "$($filas[1].nombreEmpresa) $($filas[1].utilidadAcumulada)"
-Check "el desglose de Multi: decidió el caso 1 y fue penalizada en el caso 2" ($filas[1].desglose[0].decidio -and -not $filas[1].desglose[1].decidio -and $filas[1].desglose[1].penalizacionPorcentaje -eq 10)
+$fMulti = @($filas | Where-Object { $_.idEmpresa -eq $idA })[0]
+$fMono  = @($filas | Where-Object { $_.idEmpresa -eq $idM })[0]
+# Mono: caso 1 penalizado + (990.000 − 550.000 − 90.000 − 70.000 − 20.000 − 50.000 = 210.000)
+Check "Mono = su caso 1 + 210.000 de su decisión" ([math]::Abs([decimal]$fMono.utilidadAcumulada - ($u1Mono + 210000)) -lt 0.01) "Mono $($fMono.utilidadAcumulada)"
+# Multi: 190.000 + (120.000 − p % con p sorteado entre 2 y 10)
+$p2 = [decimal]$fMulti.desglose[1].penalizacionPorcentaje
+Check "Multi = 190.000 + caso 2 penalizado con un % entre 2 y 10 ($p2 %)" ($p2 -ge 2 -and $p2 -le 10 -and [math]::Abs([decimal]$fMulti.utilidadAcumulada - (190000 + 120000 - 1200 * $p2)) -lt 0.01) "Multi $($fMulti.utilidadAcumulada), p $p2"
+Check "el desglose de Multi: decidió el caso 1 y fue penalizada en el caso 2" ($fMulti.desglose[0].decidio -and -not $fMulti.desglose[1].decidio)
+Check "ordenadas de mayor a menor utilidad" ([decimal]$filas[0].utilidadAcumulada -ge [decimal]$filas[1].utilidadAcumulada -and $filas[0].posicion -eq 1)
 
 # ---------------------------------------------------------------------
 Write-Host "`n5. Exportar a Excel" -ForegroundColor Cyan
@@ -182,5 +188,6 @@ ORDER BY e.nombre, c.fecha_inicio, f.momento DESC;
 "@
 Write-Host @"
 Esperado: Multi INICIAL caso 2 = HEREDADO con utilidades_retenidas 290000 (100.000 + 190.000);
-          Mono  INICIAL caso 2 = HEREDADO con utilidades_retenidas 192000 (100.000 + 92.000).
+          Mono  INICIAL caso 2 = HEREDADO con utilidades_retenidas $(100000 + $u1Mono) (100.000 + su caso 1).
+          Los FINAL con origen PENALIZACION guardan su penalizacion_porcentaje sorteado.
 "@

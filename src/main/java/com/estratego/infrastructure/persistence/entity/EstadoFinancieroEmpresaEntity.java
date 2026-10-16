@@ -43,6 +43,9 @@ public class EstadoFinancieroEmpresaEntity {
     private LocalDateTime calculadoEn;
 
     /** Mismas 19 columnas que la tabla caso. */
+    @Column(name = "penalizacion_porcentaje", precision = 5, scale = 2)
+    private java.math.BigDecimal penalizacionPorcentaje;
+
     @Embedded
     private EstadoFinancieroEmbeddable estado;
 }

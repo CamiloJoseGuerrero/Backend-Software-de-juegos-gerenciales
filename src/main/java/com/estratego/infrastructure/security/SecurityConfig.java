@@ -53,10 +53,26 @@ public class SecurityConfig {
                         .requestMatchers("/api/estudiante/**").hasRole("ESTUDIANTE")
                         .anyRequest().authenticated()
                 )
+                // Sin token o con token inválido/vencido → 401; con token pero sin el rol → 403. Ambos en JSON.
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((request, response, ex) -> escribirError(response, 401,
+                                "No autenticado: falta el token o venció. Inicia sesión de nuevo"))
+                        .accessDeniedHandler((request, response, ex) -> escribirError(response, 403,
+                                "No tienes permiso para esta acción")))
                 .authenticationProvider(daoAuthenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /** Mismo formato que ApiError: { message, status, timestamp }. */
+    private static void escribirError(jakarta.servlet.http.HttpServletResponse response, int status, String mensaje)
+            throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        String timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ISO_DATE_TIME);
+        response.getWriter().write("{\"message\":\"" + mensaje + "\",\"status\":" + status
+                + ",\"timestamp\":\"" + timestamp + "\"}");
     }
 
     @Bean

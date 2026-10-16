@@ -77,7 +77,10 @@ Check "login docente $Docente" ($null -ne $tDoc)
 Esperar (Api Post "/auth/login" $null @{ correo = $Docente; contrasena = "incorrecta" }) 401 "contraseña incorrecta -> 401"
 $ses = Api Get "/auth/sesion" $tDoc
 Check "GET /auth/sesion devuelve rol DOCENTE" ($ses.Status -eq 200 -and $ses.Body.usuario.rol -eq "DOCENTE")
-Esperar (Api Get "/docente/estudiantes" $null) 403 "sin token -> 403"
+$st = Api Get "/docente/estudiantes" $null
+Esperar $st 401 "sin token -> 401"
+Check "  ...con message en JSON" ($st.Body.message -like "No autenticado*") "body: $($st.Body | ConvertTo-Json -Compress)"
+Esperar (Api Get "/docente/estudiantes" "token.invalido.123") 401 "token inválido -> 401"
 
 # ---------------------------------------------------------------------
 Write-Host "`n2. Estudiantes" -ForegroundColor Cyan
@@ -255,8 +258,9 @@ $filas = @($cl.Body.clasificacion)
 Check "definitiva, 1 caso y 2 empresas" ($cl.Body.definitiva -and $cl.Body.casosConsiderados -eq 1 -and $filas.Count -eq 2) "casos $($cl.Body.casosConsiderados), filas $($filas.Count)"
 # Multi eligió 'Ampliar la planta': ventas +15 % y gastos financieros +30.000 → 920.000 − 500.000 − 80.000 − 60.000 − 50.000 − 40.000
 Check "1.º Empresa Multi con 190.000 (impacto aplicado)" ($filas[0].nombreEmpresa -eq "Empresa Multi" -and $filas[0].posicion -eq 1 -and $filas[0].utilidadAcumulada -eq 190000) "$($filas[0].nombreEmpresa) $($filas[0].utilidadAcumulada)"
-# Mono no decidió: 100.000 − 8 % (penalización máxima) = 92.000
-Check "2.º Empresa Mono con 92.000 (penalizada 8 %)" ($filas[1].nombreEmpresa -eq "Empresa Mono" -and $filas[1].utilidadAcumulada -eq 92000 -and $filas[1].casosSinDecision -eq 1 -and $filas[1].desglose[0].penalizacionPorcentaje -eq 8) "$($filas[1].nombreEmpresa) $($filas[1].utilidadAcumulada)"
+# Mono no decidió: 100.000 − p % con p sorteado entre 2 y 8
+$pm = [decimal]$filas[1].desglose[0].penalizacionPorcentaje
+Check "2.º Empresa Mono penalizada con un % entre 2 y 8 ($pm %)" ($filas[1].nombreEmpresa -eq "Empresa Mono" -and $pm -ge 2 -and $pm -le 8 -and [math]::Abs([decimal]$filas[1].utilidadAcumulada - (100000 - 1000 * $pm)) -lt 0.01 -and $filas[1].casosSinDecision -eq 1) "$($filas[1].nombreEmpresa) $($filas[1].utilidadAcumulada), p $pm"
 Check "el desglose trae la opción elegida" ($filas[0].desglose[0].decidio -and $filas[0].desglose[0].opcionElegida -eq "Ampliar la planta" -and $filas[0].desglose[0].nombreCaso -eq "TextilAndes S.A.")
 $ce = Api Get "/estudiante/simulaciones/$idSim/clasificacion" $tLider
 Check "con la simulación finalizada el estudiante la ve" ($ce.Status -eq 200 -and @($ce.Body.clasificacion).Count -eq 2) "status $($ce.Status)"

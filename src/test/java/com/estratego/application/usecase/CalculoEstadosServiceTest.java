@@ -40,6 +40,8 @@ class CalculoEstadosServiceTest {
     private Caso caso1;
     private Caso caso2;
     private final List<Empresa> empresas = new ArrayList<>();
+    /** Por defecto el sorteo cae en el máximo, para que los números de los tests sean fijos. */
+    private com.estratego.domain.service.GeneradorAleatorio sorteo = (min, max) -> max;
 
     private static BigDecimal bd(String v) { return new BigDecimal(v); }
 
@@ -105,6 +107,7 @@ class CalculoEstadosServiceTest {
                 bd("800000"), bd("500000"), bd("80000"), bd("60000"), bd("20000"), bd("40000"),
                 bd("120000"), bd("-80000"), bd("-20000")));
         caso1.setUtilidadNeta(bd("100000"));
+        caso1.setPenalizacionMin(bd("2"));
         caso1.setPenalizacionMax(bd("8"));
         caso1.setFechaInicio(T0);
         caso1.setFechaFin(T0.plusHours(2));
@@ -142,7 +145,7 @@ class CalculoEstadosServiceTest {
     private CalculoEstadosService servicio(LocalDateTime ahora) {
         Clock reloj = Clock.fixed(ahora.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         return new CalculoEstadosService(simulacionRepository, casoRepository, empresaRepository,
-                decisionCasoRepository, estados, reloj);
+                decisionCasoRepository, estados, reloj, sorteo);
     }
 
     private void activar(Caso c, LocalDateTime cuando, boolean activoAhora) {
@@ -258,5 +261,27 @@ class CalculoEstadosServiceTest {
 
         assertEquals(CalculoEstadosService.Resultado.NADA, r);
         verifyNoInteractions(decisionCasoRepository);
+    }
+
+    @Test
+    void laPenalizacionSeSorteaEntreElMinimoYElMaximoYSeGuarda() {
+        activar(caso1, T0, true);
+        List<BigDecimal[]> pedidos = new ArrayList<>();
+        sorteo = (min, max) -> { pedidos.add(new BigDecimal[]{min, max}); return bd("5.00"); };
+
+        servicio(T0.plusHours(3)).procesar(SIM);
+
+        assertEquals(2, pedidos.size()); // un sorteo por cada empresa que no decidió
+        igual("2", pedidos.get(0)[0]);
+        igual("8", pedidos.get(0)[1]);
+        EstadoFinancieroEmpresa fin = estados.de(100L, 1L, MomentoEstado.FINAL);
+        assertEquals(OrigenEstado.PENALIZACION, fin.getOrigen());
+        igual("5.00", fin.getPenalizacionPorcentaje());
+        igual("95000", fin.getEstado().utilidadNeta()); // 100.000 − 5 %
+        assertTrue(fin.getEstado().cuadra());
+
+        // Ya guardado: otra pasada no vuelve a sortear
+        servicio(T0.plusHours(4)).procesar(SIM);
+        assertEquals(2, pedidos.size());
     }
 }

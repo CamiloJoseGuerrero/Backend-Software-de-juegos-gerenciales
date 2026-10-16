@@ -30,6 +30,7 @@ public class EstadoFinancieroEmpresaRepositoryAdapter implements EstadoFinancier
         EstadoFinancieroEmpresaEntity entity = new EstadoFinancieroEmpresaEntity(
                 id, e.getIdEmpresa(), e.getIdCaso(), e.getMomento(), e.getOrigen(), e.getIdOpcion(),
                 e.getCalculadoEn() != null ? e.getCalculadoEn() : LocalDateTime.now(),
+                e.getPenalizacionPorcentaje(),
                 CasoRepositoryAdapter.aEmbeddable(e.getEstado()));
         return aDominio(jpaRepository.save(entity));
     }
@@ -61,6 +62,6 @@ public class EstadoFinancieroEmpresaRepositoryAdapter implements EstadoFinancier
     private static EstadoFinancieroEmpresa aDominio(EstadoFinancieroEmpresaEntity e) {
         return new EstadoFinancieroEmpresa(
                 e.getId(), e.getIdEmpresa(), e.getIdCaso(), e.getMomento(), e.getOrigen(), e.getIdOpcion(),
-                CasoRepositoryAdapter.aDominio(e.getEstado()), e.getCalculadoEn());
+                CasoRepositoryAdapter.aDominio(e.getEstado()), e.getCalculadoEn(), e.getPenalizacionPorcentaje());
     }
 }
