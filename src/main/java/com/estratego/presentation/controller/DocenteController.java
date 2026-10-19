@@ -46,7 +46,7 @@ public class DocenteController {
             Authentication authentication) {
         CreadoEstudianteResponse respuesta =
                 cargaMasivaEstudiantesService.crearManual(request, authentication.getName());
-        HttpStatus estado = respuesta.getContrasenaGenerada() != null ? HttpStatus.CREATED : HttpStatus.OK;
+        HttpStatus estado = respuesta.isCreado() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(estado).body(respuesta);
     }
 

@@ -99,7 +99,12 @@ class CargaMasivaEstudiantesServiceTest {
         assertEquals("Ana Perez", creado.getNombre());
         assertEquals(20, creado.getEdad());
         assertEquals("F", creado.getGenero());
-        assertEquals("Usu-001-123456!", creado.getContrasenaGenerada());
+        assertTrue(creado.isCreado());
+        // La contraseña ya no viaja en la respuesta (va por correo)
+        assertFalse(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
+                .valueToTree(creado).has("contrasenaGenerada"));
+        assertFalse(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
+                .valueToTree(creado).has("creado"));
         verify(docenteEstudianteRepository).vincular(DOCENTE_ID, 1L);
         verify(eventPublisher).publishEvent(any(EstudiantesCargadosEvent.class));
 
@@ -239,7 +244,7 @@ class CargaMasivaEstudiantesServiceTest {
 
         assertEquals("luis@correo.com", r.getCorreo());
         assertEquals("M", r.getGenero());
-        assertEquals("Usu-001-777!", r.getContrasenaGenerada());
+        assertTrue(r.isCreado());
         verify(docenteEstudianteRepository).vincular(DOCENTE_ID, 1L);
         verify(eventPublisher).publishEvent(any(EstudiantesCargadosEvent.class));
     }
@@ -255,7 +260,7 @@ class CargaMasivaEstudiantesServiceTest {
                 new CrearEstudianteRequest("Ana Perez", "ana@correo.com", "123456", null, null), CORREO_DOCENTE);
 
         assertEquals(50L, r.getId());
-        assertNull(r.getContrasenaGenerada());
+        assertFalse(r.isCreado());
         verify(docenteEstudianteRepository).vincular(DOCENTE_ID, 50L);
         verifyNoInteractions(eventPublisher);
     }

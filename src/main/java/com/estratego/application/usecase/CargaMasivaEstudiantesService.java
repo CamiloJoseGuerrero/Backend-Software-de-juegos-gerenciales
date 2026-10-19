@@ -151,8 +151,8 @@ public class CargaMasivaEstudiantesService {
 
     /**
      * Alta manual de un estudiante.
-     * @return el estudiante con {@code contrasenaGenerada} si se creó la cuenta,
-     *         o con {@code contrasenaGenerada = null} si ya existía y solo se vinculó.
+     * @return el estudiante con {@code creado = true} si se creó la cuenta (la contraseña le llega por correo),
+     *         o {@code creado = false} si ya existía y solo se vinculó.
      */
     @Transactional
     public CreadoEstudianteResponse crearManual(CrearEstudianteRequest request, String correoDocente) {
@@ -172,7 +172,7 @@ public class CargaMasivaEstudiantesService {
         EstudianteResponse v = alta.vinculado();
         return new CreadoEstudianteResponse(v.getId(), v.getNombre(), v.getCorreo(),
                 v.getNumeroIdentificacion(), v.getEdad(), v.getGenero(), Rol.ESTUDIANTE.name(),
-                null, LocalDateTime.now());
+                false, LocalDateTime.now());
     }
 
     /**
@@ -224,7 +224,7 @@ public class CargaMasivaEstudiantesService {
         return new Alta(new CreadoEstudianteResponse(
                 guardado.getId(), guardado.getNombre(), guardado.getCorreo(),
                 guardado.getNumeroIdentificacion(), edad, genero, guardado.getRol().name(),
-                passwordPlano, LocalDateTime.now()),
+                true, LocalDateTime.now()),
                 new EstudiantesCargadosEvent.Credencial(guardado.getNombre(), guardado.getCorreo(),
                         usuario, passwordPlano),
                 null);

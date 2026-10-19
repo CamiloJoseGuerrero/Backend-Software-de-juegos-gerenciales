@@ -108,7 +108,7 @@ $cedula = "77$sello"
 $nuevo = @{ nombre = "Estudiante Prueba $sello"; correo = "est.$sello@estratego-test.local"; numeroIdentificacion = $cedula; edad = 20; genero = "F" }
 $alta = Api Post "/docente/estudiantes" $tB $nuevo
 Esperar $alta 201 "crear estudiante nuevo -> 201"
-Check "devuelve la contraseña generada" ($alta.Body.contrasenaGenerada -eq "Usu-001-$cedula!")
+Check "la contraseña ya no viaja en la respuesta (va por correo)" ($null -eq $alta.Body.PSObject.Properties["contrasenaGenerada"])
 $idNuevo = [long]$alta.Body.id
 Esperar (Api Post "/docente/estudiantes" $tB $nuevo) 409 "el mismo otra vez -> 409 (ya está en tu lista)"
 $otraCedula = $nuevo.Clone(); $otraCedula.numeroIdentificacion = "88$sello"
@@ -124,7 +124,7 @@ Check "no aparece en la lista de A" (-not ((Ids (Api Get "/docente/estudiantes" 
 Esperar (Api Get "/docente/estudiantes/$idNuevo" $tA) 400 "A pide el detalle -> 400"
 $vinc = Api Post "/docente/estudiantes" $tA $nuevo
 Esperar $vinc 200 "A lo agrega a mano -> 200 (vinculado, sin cuenta nueva)"
-Check "vinculado: sin contraseña y mismo id" ($null -eq $vinc.Body.contrasenaGenerada -and [long]$vinc.Body.id -eq $idNuevo)
+Check "vinculado: mismo id y sin contraseña" ($null -eq $vinc.Body.PSObject.Properties["contrasenaGenerada"] -and [long]$vinc.Body.id -eq $idNuevo)
 Check "ahora aparece en la lista de A" ((Ids (Api Get "/docente/estudiantes" $tA)) -contains $idNuevo)
 Esperar (Api Get "/docente/estudiantes/$idNuevo" $tA) 200 "A ve el detalle -> 200"
 
