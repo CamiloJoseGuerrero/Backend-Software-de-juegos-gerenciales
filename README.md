@@ -48,8 +48,8 @@ Efectivo y utilidades retenidas pueden quedar negativos. Una empresa que entra a
 ### Pendiente
 
 - Boletín de factores de entorno por caso (D14: inflación, tasa de interés, tasa de cambio). Es solo informativo y no afecta el cálculo.
-- Retirar `/docente/equipos` y `/docente/partidas` (módulo anterior, reemplazado por empresas y casos) cuando el frontend confirme.
-- SMTP real y quitar `contrasenaGenerada` de las respuestas.
+- Borrar las tablas de equipos y partidas (fase 2). El código se retiró el 2026-10-20 y esas rutas ya responden 404.
+- Contraseña inicial con parte aleatoria y/o cambio obligatorio en el primer ingreso (pendiente de decisión del cliente).
 - Despliegue fuera del PC (Render / Railway).
 
 ---
@@ -173,12 +173,11 @@ Todas las rutas van bajo `/api`. Excepto login y registro, requieren `Authorizat
 |---|---|
 | Autenticación | `POST /auth/login`, `POST /auth/registro-docente`, `GET /auth/sesion`, `POST /auth/cambiar-contrasena` |
 | Estudiantes (docente) | `POST /docente/estudiantes/carga-masiva` (multipart, `.xlsx`), `POST /docente/estudiantes`, `GET /docente/estudiantes`, `GET /docente/estudiantes/{id}` |
-| Simulaciones | CRUD en `/docente/simulaciones`, más `POST …/{id}/programar`, `…/iniciar`, `…/finalizar` y `GET …/{id}/clasificacion` |
+| Simulaciones | CRUD en `/docente/simulaciones`, más `POST …/{id}/programar`, `…/desprogramar`, `…/iniciar`, `…/finalizar`, `GET …/{id}/clasificacion` y `GET …/{id}/exportar` (`.xlsx`) |
 | Empresas | `POST/GET /docente/simulaciones/{id}/empresas`, `GET/PUT/DELETE /docente/empresas/{id}` |
 | Integrantes | `/docente/empresas/{idEmpresa}/integrantes`: agregar, listar, actualizar, `PUT …/{idUsuario}/lider`, quitar |
 | Casos | `POST/GET /docente/casos`, `POST/GET /docente/simulaciones/{id}/casos`, `GET/PUT/DELETE /docente/casos/{id}`, `POST …/{id}/activar`, `GET …/{id}/decisiones` |
 | Portal estudiante | `GET /estudiante/simulaciones`, `GET /estudiante/empresas/{id}`, `GET /estudiante/simulaciones/{id}/casos`, `GET /estudiante/casos/{id}`, `GET /estudiante/caso-actual`, `POST /estudiante/decision`, `GET /estudiante/simulaciones/{id}/clasificacion` |
-| Legado (se retirará) | `/docente/equipos`, `/docente/partidas` |
 
 ### Formato de errores
 
