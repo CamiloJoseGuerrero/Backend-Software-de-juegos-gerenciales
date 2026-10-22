@@ -83,6 +83,11 @@ public class SimulacionService {
         }
 
         validarFechas(request.getFechaInicio(), request.getFechaFin());
+        // Misma regla que al crear. Conservar la fecha que ya tenía se permite (p. ej. solo cambiar el nombre).
+        if (!request.getFechaInicio().equals(simulacion.getFechaInicio())
+                && request.getFechaInicio().isBefore(LocalDate.now())) {
+            throw new CampoInvalidoException("fechaInicio", "La fecha de inicio no puede ser pasada");
+        }
 
         simulacion.setNombre(request.getNombre().trim());
         simulacion.setFechaInicio(request.getFechaInicio());

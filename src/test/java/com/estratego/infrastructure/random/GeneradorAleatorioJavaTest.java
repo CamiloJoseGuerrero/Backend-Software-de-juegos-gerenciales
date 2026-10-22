@@ -1,4 +1,4 @@
-package com.estratego.infrastructure;
+package com.estratego.infrastructure.random;
 
 import com.estratego.infrastructure.random.GeneradorAleatorioJava;
 import org.junit.jupiter.api.Test;

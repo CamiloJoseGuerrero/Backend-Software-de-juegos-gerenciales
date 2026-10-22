@@ -1,5 +1,6 @@
 package com.estratego.application.usecase;
 
+import com.estratego.application.dto.docente.ActualizarSimulacionRequest;
 import com.estratego.application.dto.docente.CrearSimulacionRequest;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
@@ -254,5 +255,32 @@ class SimulacionServiceTest {
         when(simulacionRepository.findById(1L)).thenReturn(Optional.of(simulacion));
 
         assertThrows(IllegalArgumentException.class, () -> simulacionService.desprogramar(1L, CORREO_COORDINADOR));
+    }
+
+    @Test
+    void actualizarRechazaFechaInicioPasada() {
+        Simulacion sim = new Simulacion(5L, COORDINADOR_ID, "Curso", LocalDate.now().plusDays(3), null,
+                EstadoSimulacion.PROGRAMADA);
+        when(simulacionRepository.findById(5L)).thenReturn(Optional.of(sim));
+
+        var request = new ActualizarSimulacionRequest("Curso", LocalDate.now().minusDays(1), null);
+
+        CampoInvalidoException ex = assertThrows(CampoInvalidoException.class,
+                () -> simulacionService.actualizar(5L, request, CORREO_COORDINADOR));
+        assertEquals("fechaInicio", ex.getCampo());
+        assertEquals(LocalDate.now().plusDays(3), sim.getFechaInicio());
+    }
+
+    @Test
+    void actualizarPermiteConservarUnaFechaInicioQueYaPaso() {
+        LocalDate pasada = LocalDate.now().minusDays(2);
+        Simulacion sim = new Simulacion(6L, COORDINADOR_ID, "Curso", pasada, null, EstadoSimulacion.BORRADOR);
+        when(simulacionRepository.findById(6L)).thenReturn(Optional.of(sim));
+        when(simulacionRepository.save(any(Simulacion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = simulacionService.actualizar(6L,
+                new ActualizarSimulacionRequest("Curso renombrado", pasada, null), CORREO_COORDINADOR);
+
+        assertEquals("Curso renombrado", response.getNombre());
     }
 }
