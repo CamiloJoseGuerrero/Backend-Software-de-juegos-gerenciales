@@ -6,6 +6,7 @@ import com.estratego.domain.model.empresa.Empresa;
 import com.estratego.domain.model.financiero.EstadoFinanciero;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
+import com.estratego.domain.repository.BoletinCasoRepository;
 import com.estratego.domain.repository.*;
 import com.estratego.domain.service.OrdenCasos;
 import com.estratego.application.event.EstadosFinancierosPendientesEvent;
@@ -33,6 +34,7 @@ public class CasoService {
     private final EmpresaRepository empresaRepository;
     private final IntegranteRepository integranteRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final BoletinCasoRepository boletinCasoRepository;
 
     @Transactional
     public CasoResponse crear(Long idSimulacion, CasoRequest request, String correoDocente) {
@@ -352,7 +354,8 @@ public class CasoService {
                         .map(o -> new OpcionCasoResponse(o.getId(), o.getOrden(), o.getOpcion(), o.getResultado(),
                                 o.getImpacto()))
                         .toList(),
-                esPrimerCaso
+                esPrimerCaso,
+                c.getId() != null && boletinCasoRepository.existsByIdCaso(c.getId())
         );
     }
 

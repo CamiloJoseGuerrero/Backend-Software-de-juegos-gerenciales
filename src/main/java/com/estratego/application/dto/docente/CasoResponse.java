@@ -33,4 +33,6 @@ public class CasoResponse {
     private List<OpcionCasoResponse> opciones;
     /** true si es el primero de su simulación (el único que define el balance inicial). */
     private boolean esPrimerCaso;
+    /** true si el caso tiene boletín de factores de entorno (D14); el detalle va en GET /casos/{id}/boletin. */
+    private boolean tieneBoletin;
 }

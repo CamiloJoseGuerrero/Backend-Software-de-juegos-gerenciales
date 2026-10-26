@@ -58,6 +58,7 @@ class CasoServiceTest {
     @Mock private EmpresaRepository empresaRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @Mock private IntegranteRepository integranteRepository;
+    @Mock private com.estratego.domain.repository.BoletinCasoRepository boletinCasoRepository;
 
     @InjectMocks
     private CasoService casoService;
@@ -544,5 +545,20 @@ class CasoServiceTest {
         var r = casoService.listarPorSimulacion(SIMULACION_ID, CORREO_DOCENTE);
 
         assertEquals(List.of(false, false, true), r.stream().map(c -> c.isEsPrimerCaso()).toList());
+    }
+
+    @Test
+    void listarMarcaTieneBoletinSoloEnLosCasosConBoletin() {
+        simulacionValida();
+        LocalDateTime t = INICIO_SIM.atTime(8, 0);
+        when(casoRepository.findByIdSimulacion(SIMULACION_ID)).thenReturn(List.of(
+                casoExistente(1L, "Con boletín", t, true),
+                casoExistente(2L, "Sin boletín", t.plusDays(1), false)));
+        when(boletinCasoRepository.existsByIdCaso(1L)).thenReturn(true);
+        when(boletinCasoRepository.existsByIdCaso(2L)).thenReturn(false);
+
+        var r = casoService.listarPorSimulacion(SIMULACION_ID, CORREO_DOCENTE);
+
+        assertEquals(List.of(true, false), r.stream().map(c -> c.isTieneBoletin()).toList());
     }
 }
