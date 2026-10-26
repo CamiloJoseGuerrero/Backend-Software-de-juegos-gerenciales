@@ -266,6 +266,40 @@ $ce = Api Get "/estudiante/simulaciones/$idSim/clasificacion" $tLider
 Check "con la simulación finalizada el estudiante la ve" ($ce.Status -eq 200 -and @($ce.Body.clasificacion).Count -eq 2) "status $($ce.Status)"
 
 # ---------------------------------------------------------------------
+Write-Host "`n10. Boletín de factores de entorno (D14)" -ForegroundColor Cyan
+Esperar (Api Put "/docente/casos/$idCaso/boletin" $tDoc @{ inflacion = 5.2; tasaInteres = 11.5; tasaCambio = 4120.50; nota = "Test" }) 400 "modificar boletín en simulación finalizada -> 400"
+Esperar (Api Delete "/docente/casos/$idCaso/boletin" $tDoc) 400 "eliminar boletín en simulación finalizada -> 400"
+
+$simB = Api Post "/docente/simulaciones" $tDoc @{ nombre = "Simulación Boletín $($ahora.ToString('HHmmss'))"; fechaInicio = $ahora.ToString("yyyy-MM-dd"); fechaFin = $ahora.AddDays(15).ToString("yyyy-MM-dd") }
+$idSimB = $simB.Body.id
+$casoBReq = $caso.Clone()
+$casoBReq.idSimulacion = $idSimB
+$casoBReq.nombreEmpresa = "Empresa Boletín"
+$cBol = Api Post "/docente/simulaciones/$idSimB/casos" $tDoc $casoBReq
+$idCasoB = $cBol.Body.id
+
+Esperar (Api Get "/docente/casos/$idCasoB/boletin" $tDoc) 204 "sin boletín -> 204 No Content"
+Esperar (Api Put "/docente/casos/$idCasoB/boletin" $tDoc @{ inflacion = -150; tasaInteres = 5; tasaCambio = 4000 }) 400 "inflación < -100 -> 400"
+Esperar (Api Put "/docente/casos/$idCasoB/boletin" $tDoc @{ inflacion = 5; tasaInteres = -1; tasaCambio = 4000 }) 400 "tasa de interés < 0 -> 400"
+Esperar (Api Put "/docente/casos/$idCasoB/boletin" $tDoc @{ inflacion = 5; tasaInteres = 10; tasaCambio = 0 }) 400 "tasa de cambio = 0 -> 400"
+
+$bPut = Api Put "/docente/casos/$idCasoB/boletin" $tDoc @{ inflacion = 5.2; tasaInteres = 11.5; tasaCambio = 4120.50; nota = "  Inflación proyectada  " }
+Esperar $bPut 200 "crear boletín -> 200"
+Check "  ...campos guardados correctamente" ($bPut.Body.inflacion -eq 5.2 -and $bPut.Body.tasaInteres -eq 11.5 -and $bPut.Body.tasaCambio -eq 4120.50 -and $bPut.Body.nota -eq "Inflación proyectada")
+Check "  ...trae publicadoEn y actualizadoEn" ($null -ne $bPut.Body.publicadoEn -and $null -ne $bPut.Body.actualizadoEn)
+
+$bGet = Api Get "/docente/casos/$idCasoB/boletin" $tDoc
+Check "GET docente devuelve el boletín" ($bGet.Status -eq 200 -and $bGet.Body.idCaso -eq $idCasoB -and $bGet.Body.nota -eq "Inflación proyectada")
+
+$bPut2 = Api Put "/docente/casos/$idCasoB/boletin" $tDoc @{ inflacion = 4.8; tasaInteres = 10.0; tasaCambio = 4050.00; nota = "   " }
+Check "reemplazar con nota vacía guarda null" ($bPut2.Status -eq 200 -and $null -eq $bPut2.Body.nota -and $bPut2.Body.publicadoEn -eq $bPut.Body.publicadoEn)
+
+Esperar (Api Delete "/docente/casos/$idCasoB/boletin" $tDoc) 204 "eliminar boletín -> 204"
+Esperar (Api Get "/docente/casos/$idCasoB/boletin" $tDoc) 204 "consultar tras eliminar -> 204"
+
+Api Delete "/docente/simulaciones/$idSimB" $tDoc | Out-Null
+
+# ---------------------------------------------------------------------
 Write-Host "`n------------------------------------------------------------"
 $color = if ($script:fallos -eq 0) { "Green" } else { "Yellow" }
 Write-Host ("Resultado: {0} OK, {1} fallas   (simulación de prueba id {2})" -f $script:ok, $script:fallos, $idSim) -ForegroundColor $color
