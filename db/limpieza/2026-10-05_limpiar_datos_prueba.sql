@@ -6,7 +6,7 @@
 --     y todas las creadas por docentes de prueba (@estratego-test.local),
 --     con sus empresas, integrantes, casos, opciones y decisiones.
 --   * Usuarios @estratego-test.local (docentes B, estudiantes de prueba, integracion.*)
---     con sus vínculos docente-estudiante, datos de estudiante/profesor y equipos viejos.
+--     con sus vínculos docente-estudiante y datos de estudiante/profesor.
 --
 -- NO borra:
 --   * La simulación 45 ("Prueba clasificación (auto)"), ni los usuarios que participan en ella.
@@ -69,18 +69,7 @@ DELETE FROM empresa WHERE id_simulacion IN (SELECT id_simulacion FROM sims_borra
 
 DELETE FROM simulacion WHERE id_simulacion IN (SELECT id_simulacion FROM sims_borrar);
 
--- 4. Equipos y partidas viejos de esos usuarios ----------------------
-DELETE FROM partida_equipos
-WHERE partida_id IN (SELECT id FROM partidas WHERE docente_id IN (SELECT id FROM usuarios_borrar))
-   OR equipo_id IN (SELECT id FROM equipos WHERE docente_id IN (SELECT id FROM usuarios_borrar)
-                                            OR lider_id   IN (SELECT id FROM usuarios_borrar));
-DELETE FROM partidas WHERE docente_id IN (SELECT id FROM usuarios_borrar);
-DELETE FROM equipo_estudiantes
-WHERE estudiante_id IN (SELECT id FROM usuarios_borrar)
-   OR equipo_id IN (SELECT id FROM equipos WHERE docente_id IN (SELECT id FROM usuarios_borrar)
-                                            OR lider_id   IN (SELECT id FROM usuarios_borrar));
-DELETE FROM equipos WHERE docente_id IN (SELECT id FROM usuarios_borrar)
-                       OR lider_id   IN (SELECT id FROM usuarios_borrar);
+-- 4. (Equipos y partidas: tablas borradas en la fase 2, migracion 2026-10-27)
 
 -- 5. Usuarios ---------------------------------------------------------
 DELETE FROM docente_estudiante

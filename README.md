@@ -86,7 +86,7 @@ pruebas/
 └── estudiantes_vincular.xlsx       Excel de ejemplo para la carga masiva
 ```
 
-Los paquetes `domain/model/{decision,escenario,indicador,mercado,periodo}`, `domain/strategy` y servicios como `MotorSimulacion` son esqueletos del diseño original, todavía sin uso.
+`domain/model/mercado/Mercado` y `domain/service/CalculadorParticipacionMercado` son esqueletos vacíos que se dejaron para una posible participación de mercado; todavía no se usan.
 
 ---
 
