@@ -1,8 +1,11 @@
 package com.estratego.presentation.controller;
 
+import com.estratego.application.dto.docente.BoletinCasoRequest;
+import com.estratego.application.dto.docente.BoletinCasoResponse;
 import com.estratego.application.dto.docente.CasoRequest;
 import com.estratego.application.dto.docente.CasoResponse;
 import com.estratego.application.dto.docente.DecisionEmpresaResponse;
+import com.estratego.application.usecase.BoletinCasoService;
 import com.estratego.application.usecase.CasoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,7 @@ import java.util.List;
 public class CasoController {
 
     private final CasoService casoService;
+    private final BoletinCasoService boletinCasoService;
 
     /** Igual que el front: la simulación va en el body (idSimulacion). */
     @PostMapping("/casos")
@@ -86,6 +90,31 @@ public class CasoController {
             @PathVariable Long id,
             Authentication authentication) {
         casoService.eliminar(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/casos/{id}/boletin")
+    public ResponseEntity<BoletinCasoResponse> guardarBoletin(
+            @PathVariable Long id,
+            @Valid @RequestBody BoletinCasoRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(boletinCasoService.guardarOReemplazar(id, request, authentication.getName()));
+    }
+
+    @GetMapping("/casos/{id}/boletin")
+    public ResponseEntity<BoletinCasoResponse> obtenerBoletin(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return boletinCasoService.obtenerParaDocente(id, authentication.getName())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @DeleteMapping("/casos/{id}/boletin")
+    public ResponseEntity<Void> eliminarBoletin(
+            @PathVariable Long id,
+            Authentication authentication) {
+        boletinCasoService.eliminarParaDocente(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 }

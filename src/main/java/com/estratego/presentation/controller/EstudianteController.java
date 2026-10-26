@@ -1,12 +1,14 @@
 package com.estratego.presentation.controller;
 
 import com.estratego.application.dto.clasificacion.ClasificacionResponse;
+import com.estratego.application.dto.docente.BoletinCasoResponse;
 import com.estratego.application.dto.estudiante.CasoActualResponse;
 import com.estratego.application.dto.estudiante.CasoEstudianteResponse;
 import com.estratego.application.dto.estudiante.DecisionRequest;
 import com.estratego.application.dto.estudiante.DecisionResponse;
 import com.estratego.application.dto.estudiante.MiEmpresaResponse;
 import com.estratego.application.dto.estudiante.MiSimulacionResponse;
+import com.estratego.application.usecase.BoletinCasoService;
 import com.estratego.application.usecase.ClasificacionService;
 import com.estratego.application.usecase.PortalEstudianteService;
 import jakarta.validation.Valid;
@@ -27,6 +29,7 @@ public class EstudianteController {
 
     private final PortalEstudianteService portalEstudianteService;
     private final ClasificacionService clasificacionService;
+    private final BoletinCasoService boletinCasoService;
 
     /** Ranking final: solo con la simulación FINALIZADA (si no, 400). */
     @GetMapping("/simulaciones/{idSimulacion}/clasificacion")
@@ -60,6 +63,15 @@ public class EstudianteController {
             @PathVariable Long id,
             Authentication authentication) {
         return ResponseEntity.ok(portalEstudianteService.caso(id, authentication.getName()));
+    }
+
+    @GetMapping("/casos/{id}/boletin")
+    public ResponseEntity<BoletinCasoResponse> boletin(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return boletinCasoService.obtenerParaEstudiante(id, authentication.getName())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /** 200 con el caso activo, o 204 (sin cuerpo) si el estudiante no tiene caso activo visible. */
