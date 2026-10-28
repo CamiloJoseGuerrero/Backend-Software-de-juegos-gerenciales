@@ -300,6 +300,23 @@ Esperar (Api Get "/docente/casos/$idCasoB/boletin" $tDoc) 204 "consultar tras el
 Api Delete "/docente/simulaciones/$idSimB" $tDoc | Out-Null
 
 # ---------------------------------------------------------------------
+Write-Host "`n11. Estados financieros de empresas e historia (D2)" -ForegroundColor Cyan
+$ee = Api Get "/docente/casos/$idCaso/estados-empresas" $tDoc
+Check "GET estados-empresas devuelve 200 con ambas empresas" ($ee.Status -eq 200 -and @($ee.Body).Count -eq 2) "status $($ee.Status), empresas $(@($ee.Body).Count)"
+$eeMulti = @($ee.Body | Where-Object { $_.idEmpresa -eq $idA })[0]
+Check "Empresa Multi tiene inicial y final con indicadores" ($eeMulti -and $null -ne $eeMulti.inicial -and $null -ne $eeMulti.final -and $null -ne $eeMulti.inicial.indicadores -and $null -ne $eeMulti.inicial.activoTotal)
+Check "Empresa Multi origen inicial docente y final decision" ($eeMulti.inicial.origen -eq "docente" -and $eeMulti.final.origen -eq "decision")
+
+$histDoc = Api Get "/docente/empresas/$idA/historia" $tDoc
+Check "GET historia docente devuelve 200 con el caso jugado" ($histDoc.Status -eq 200 -and @($histDoc.Body).Count -eq 1 -and $histDoc.Body[0].idCaso -eq $idCaso) "casos $(@($histDoc.Body).Count)"
+Check "historia docente contiene inicial y final" ($null -ne $histDoc.Body[0].inicial -and $null -ne $histDoc.Body[0].final)
+
+$histEst = Api Get "/estudiante/empresas/$idA/historia" $tLider
+Check "GET historia estudiante de su propia empresa devuelve 200" ($histEst.Status -eq 200 -and @($histEst.Body).Count -eq 1) "status $($histEst.Status)"
+Esperar (Api Get "/estudiante/empresas/$idM/historia" $tLider) 400 "estudiante consultando empresa ajena -> 400"
+Esperar (Api Get "/docente/empresas/999999/historia" $tDoc) 400 "docente consultando empresa inexistente -> 400"
+
+# ---------------------------------------------------------------------
 Write-Host "`n------------------------------------------------------------"
 $color = if ($script:fallos -eq 0) { "Green" } else { "Yellow" }
 Write-Host ("Resultado: {0} OK, {1} fallas   (simulación de prueba id {2})" -f $script:ok, $script:fallos, $idSim) -ForegroundColor $color
