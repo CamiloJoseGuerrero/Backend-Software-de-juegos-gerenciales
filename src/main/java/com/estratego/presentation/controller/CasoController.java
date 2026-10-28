@@ -5,6 +5,7 @@ import com.estratego.application.dto.docente.BoletinCasoResponse;
 import com.estratego.application.dto.docente.CasoRequest;
 import com.estratego.application.dto.docente.CasoResponse;
 import com.estratego.application.dto.docente.DecisionEmpresaResponse;
+import com.estratego.application.dto.docente.EmpresaEstadosResponse;
 import com.estratego.application.usecase.BoletinCasoService;
 import com.estratego.application.usecase.CasoService;
 import jakarta.validation.Valid;
@@ -83,6 +84,13 @@ public class CasoController {
             @PathVariable Long id,
             Authentication authentication) {
         return ResponseEntity.ok(casoService.decisiones(id, authentication.getName()));
+    }
+
+    @GetMapping("/casos/{id}/estados-empresas")
+    public ResponseEntity<List<EmpresaEstadosResponse>> estadosEmpresas(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(casoService.estadosEmpresas(id, authentication.getName()));
     }
 
     @DeleteMapping("/casos/{id}")
