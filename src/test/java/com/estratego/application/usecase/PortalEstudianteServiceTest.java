@@ -15,6 +15,11 @@ import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.model.boletin.BoletinCaso;
+import com.estratego.domain.model.financiero.EstadoFinanciero;
+import com.estratego.domain.model.financiero.EstadoFinancieroEmpresa;
+import com.estratego.domain.model.financiero.MomentoEstado;
+import com.estratego.domain.model.financiero.OrigenEstado;
 import com.estratego.domain.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,8 @@ class PortalEstudianteServiceTest {
     @Mock private SimulacionRepository simulacionRepository;
     @Mock private CasoRepository casoRepository;
     @Mock private DecisionCasoRepository decisionCasoRepository;
+    @Mock private EstadoFinancieroEmpresaRepository estadoFinancieroEmpresaRepository;
+    @Mock private BoletinCasoRepository boletinCasoRepository;
 
     @InjectMocks
     private PortalEstudianteService service;
@@ -372,5 +379,78 @@ class PortalEstudianteServiceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> service.decidir(new DecisionRequest(7L, 999L), CORREO));
         assertEquals("La opción no pertenece a este caso", ex.getMessage());
+    }
+
+    @Test
+    void casoActualIncluyeFinancieroEmpresaYBoletin() {
+        participaComo(false);
+        Caso c = casoEnPartida();
+        when(casoRepository.findActivoBySimulacion(SIM_ID)).thenReturn(Optional.of(c));
+        when(decisionCasoRepository.findByIdCasoAndIdEmpresa(7L, EMPRESA_ID)).thenReturn(Optional.empty());
+
+        EstadoFinanciero efInicial = new EstadoFinanciero();
+        efInicial.setEfectivo(new BigDecimal("5000"));
+        EstadoFinancieroEmpresa eeInicial = new EstadoFinancieroEmpresa(
+                1L, EMPRESA_ID, 7L, MomentoEstado.INICIAL, OrigenEstado.HEREDADO, null, efInicial, LocalDateTime.now(), null);
+        when(estadoFinancieroEmpresaRepository.buscar(EMPRESA_ID, 7L, MomentoEstado.INICIAL))
+                .thenReturn(Optional.of(eeInicial));
+        when(estadoFinancieroEmpresaRepository.buscar(EMPRESA_ID, 7L, MomentoEstado.FINAL))
+                .thenReturn(Optional.empty());
+
+        BoletinCaso b = new BoletinCaso(1L, 7L, new BigDecimal("3.5"), new BigDecimal("10.0"), new BigDecimal("4000.0"), "Nota", LocalDateTime.now(), LocalDateTime.now());
+        when(boletinCasoRepository.findByIdCaso(7L)).thenReturn(Optional.of(b));
+
+        var r = service.casoActual(CORREO, null).orElseThrow();
+
+        assertNotNull(r.getFinancieroEmpresa());
+        assertNotNull(r.getFinancieroEmpresa().inicial());
+        assertEquals("heredado", r.getFinancieroEmpresa().inicial().getOrigen());
+        assertEquals(new BigDecimal("5000"), r.getFinancieroEmpresa().inicial().getEfectivo());
+        assertNull(r.getFinancieroEmpresa().finalEstado());
+
+        assertNotNull(r.getBoletin());
+        assertEquals(new BigDecimal("3.5"), r.getBoletin().getInflacion());
+        assertEquals("Nota", r.getBoletin().getNota());
+    }
+
+    @Test
+    void partidaFinalizadaSiSimulacionFinalizada() {
+        simulacion.setEstado(EstadoSimulacion.FINALIZADA);
+        when(simulacionRepository.findById(SIM_ID)).thenReturn(Optional.of(simulacion));
+        when(integranteRepository.existsEnSimulacion(SIM_ID, ESTUDIANTE_ID)).thenReturn(true);
+
+        LocalDateTime ahora = LocalDateTime.now();
+        // Las fechas de partida están en el futuro, pero la simulación ya finalizó
+        Caso c = caso(1L, ahora.minusDays(1), ahora.plusHours(1), ahora.plusHours(2));
+        when(casoRepository.findById(1L)).thenReturn(Optional.of(c));
+        when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c));
+
+        var response = service.caso(1L, CORREO);
+
+        assertTrue(response.isPartidaFinalizada());
+    }
+
+    @Test
+    void partidaFinalizadaSiCasoPosteriorActivado() {
+        when(simulacionRepository.findById(SIM_ID)).thenReturn(Optional.of(simulacion));
+        when(integranteRepository.existsEnSimulacion(SIM_ID, ESTUDIANTE_ID)).thenReturn(true);
+
+        LocalDateTime ahora = LocalDateTime.now();
+        // Caso 1 aún tiene fechaFin en el futuro
+        Caso c1 = caso(1L, ahora.minusDays(1), ahora.minusHours(1), ahora.plusHours(2));
+        c1.setEstado(EstadoCaso.BORRADOR);
+        c1.setActivadoEn(ahora.minusHours(1));
+
+        // Caso 2 es posterior en OrdenCasos y ya está ACTIVO
+        Caso c2 = caso(2L, ahora.minusDays(1), ahora.plusHours(3), ahora.plusHours(5));
+        c2.setEstado(EstadoCaso.ACTIVO);
+        c2.setActivadoEn(ahora);
+
+        when(casoRepository.findById(1L)).thenReturn(Optional.of(c1));
+        when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c1, c2));
+
+        var response = service.caso(1L, CORREO);
+
+        assertTrue(response.isPartidaFinalizada(), "El caso 1 debe marcarse como finalizado porque ya se activó el caso 2 posterior");
     }
 }
