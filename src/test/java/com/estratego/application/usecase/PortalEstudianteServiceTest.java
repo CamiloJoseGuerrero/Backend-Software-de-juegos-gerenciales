@@ -4,6 +4,7 @@ import com.estratego.domain.model.caso.AsignacionEquipos;
 import com.estratego.domain.model.caso.Caso;
 import com.estratego.domain.model.caso.DecisionCaso;
 import com.estratego.domain.model.caso.EstadoCaso;
+import com.estratego.application.dto.empresa.HistoriaEmpresaResponse;
 import com.estratego.application.dto.estudiante.DecisionRequest;
 import com.estratego.domain.model.caso.OpcionCaso;
 import com.estratego.domain.model.empresa.Empresa;
@@ -452,5 +453,64 @@ class PortalEstudianteServiceTest {
         var response = service.caso(1L, CORREO);
 
         assertTrue(response.isPartidaFinalizada(), "El caso 1 debe marcarse como finalizado porque ya se activó el caso 2 posterior");
+    }
+
+    @Test
+    void historiaEmpresaRechazaSiEstudianteNoPerteneceAEmpresa() {
+        when(integranteRepository.findByIdEmpresaAndIdUsuario(999L, ESTUDIANTE_ID)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.historiaEmpresa(999L, CORREO));
+    }
+
+    @Test
+    void historiaEmpresaRechazaSiEmpresaNoExiste() {
+        Integrante yo = new Integrante(1L, 999L, ESTUDIANTE_ID, Departamento.COMERCIAL, false);
+        when(integranteRepository.findByIdEmpresaAndIdUsuario(999L, ESTUDIANTE_ID)).thenReturn(Optional.of(yo));
+        when(empresaRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.historiaEmpresa(999L, CORREO));
+    }
+
+    @Test
+    void historiaEmpresaRetornaCasosOrdenadosConInicialYFinal() {
+        Integrante yo = new Integrante(1L, EMPRESA_ID, ESTUDIANTE_ID, Departamento.COMERCIAL, false);
+        when(integranteRepository.findByIdEmpresaAndIdUsuario(EMPRESA_ID, ESTUDIANTE_ID)).thenReturn(Optional.of(yo));
+        when(empresaRepository.findById(EMPRESA_ID)).thenReturn(Optional.of(empresa));
+
+        LocalDateTime t1 = LocalDateTime.now().minusDays(5);
+        LocalDateTime t2 = LocalDateTime.now().minusDays(1);
+
+        Caso c1 = caso(1L, t1.minusDays(1), t1, t1.plusDays(1));
+        c1.setNombreEmpresa("TextilAndes 1");
+        c1.setFechaInicio(t1);
+
+        Caso c2 = caso(2L, t2.minusDays(1), t2, t2.plusDays(1));
+        c2.setNombreEmpresa("TextilAndes 2");
+        c2.setFechaInicio(t2);
+
+        when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c2, c1));
+
+        EstadoFinanciero ef1 = new EstadoFinanciero();
+        ef1.setEfectivo(new BigDecimal("3000"));
+        EstadoFinancieroEmpresa ee1 = new EstadoFinancieroEmpresa(
+                1L, EMPRESA_ID, 1L, MomentoEstado.INICIAL, OrigenEstado.DOCENTE, null, ef1, LocalDateTime.now(), null);
+
+        EstadoFinanciero ef2 = new EstadoFinanciero();
+        ef2.setEfectivo(new BigDecimal("4500"));
+        EstadoFinancieroEmpresa ee2 = new EstadoFinancieroEmpresa(
+                2L, EMPRESA_ID, 1L, MomentoEstado.FINAL, OrigenEstado.DECISION, 1L, ef2, LocalDateTime.now(), null);
+
+        when(estadoFinancieroEmpresaRepository.listarPorEmpresa(EMPRESA_ID)).thenReturn(List.of(ee1, ee2));
+
+        List<HistoriaEmpresaResponse> historia = service.historiaEmpresa(EMPRESA_ID, CORREO);
+
+        // c1 tiene estados, c2 no tiene estados (se omite)
+        assertEquals(1, historia.size());
+        assertEquals(1L, historia.get(0).idCaso());
+        assertEquals("TextilAndes 1", historia.get(0).nombreCaso());
+        assertEquals(new BigDecimal("3000"), historia.get(0).inicial().getEfectivo());
+        assertEquals(new BigDecimal("4500"), historia.get(0).finalEstado().getEfectivo());
     }
 }

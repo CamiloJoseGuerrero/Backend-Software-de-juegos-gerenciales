@@ -3,21 +3,28 @@ package com.estratego.application.usecase;
 import com.estratego.application.dto.docente.ActualizarEmpresaRequest;
 import com.estratego.application.dto.docente.CrearEmpresaRequest;
 import com.estratego.application.dto.docente.EmpresaResponse;
+import com.estratego.application.dto.docente.EstadoFinancieroEmpresaResponse;
+import com.estratego.application.dto.empresa.HistoriaEmpresaResponse;
+import com.estratego.domain.model.caso.Caso;
 import com.estratego.domain.model.empresa.Empresa;
 import com.estratego.domain.model.empresa.EstadoEmpresa;
 import com.estratego.domain.model.empresa.TipoJugador;
+import com.estratego.domain.model.financiero.EstadoFinancieroEmpresa;
+import com.estratego.domain.model.financiero.MomentoEstado;
 import com.estratego.domain.model.integrante.Integrante;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
-import com.estratego.domain.repository.EmpresaRepository;
-import com.estratego.domain.repository.IntegranteRepository;
-import com.estratego.domain.repository.SimulacionRepository;
-import com.estratego.domain.repository.UsuarioRepository;
+import com.estratego.domain.repository.*;
+import com.estratego.domain.service.OrdenCasos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +34,8 @@ public class EmpresaService {
     private final SimulacionRepository simulacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final IntegranteRepository integranteRepository;
+    private final CasoRepository casoRepository;
+    private final EstadoFinancieroEmpresaRepository estadoFinancieroEmpresaRepository;
 
     @Transactional
     public EmpresaResponse crear(Long idSimulacion, CrearEmpresaRequest request, String correoDocente) {
@@ -65,6 +74,44 @@ public class EmpresaService {
     public EmpresaResponse obtener(Long id, String correoDocente) {
         Empresa empresa = obtenerYValidar(id, correoDocente);
         return toResponse(empresa);
+    }
+
+    /**
+     * Historia financiera de la empresa a lo largo de los casos jugados de la simulación.
+     */
+    @Transactional(readOnly = true)
+    public List<HistoriaEmpresaResponse> historiaParaDocente(Long idEmpresa, String correoDocente) {
+        Empresa empresa = obtenerYValidar(idEmpresa, correoDocente);
+        return construirHistoria(empresa);
+    }
+
+    private List<HistoriaEmpresaResponse> construirHistoria(Empresa empresa) {
+        List<EstadoFinancieroEmpresa> estados = estadoFinancieroEmpresaRepository.listarPorEmpresa(empresa.getId());
+        Map<Long, Map<MomentoEstado, EstadoFinancieroEmpresa>> porCaso = estados.stream()
+                .collect(Collectors.groupingBy(
+                        EstadoFinancieroEmpresa::getIdCaso,
+                        Collectors.toMap(EstadoFinancieroEmpresa::getMomento, Function.identity(), (a, b) -> b)
+                ));
+
+        List<Caso> casosOrdenados = OrdenCasos.ordenados(casoRepository.findByIdSimulacion(empresa.getIdSimulacion()));
+        List<HistoriaEmpresaResponse> resultado = new ArrayList<>();
+        for (Caso caso : casosOrdenados) {
+            Map<MomentoEstado, EstadoFinancieroEmpresa> momentos = porCaso.get(caso.getId());
+            if (momentos == null || momentos.isEmpty()) {
+                continue;
+            }
+            EstadoFinancieroEmpresa inicial = momentos.get(MomentoEstado.INICIAL);
+            EstadoFinancieroEmpresa finalEstado = momentos.get(MomentoEstado.FINAL);
+
+            resultado.add(new HistoriaEmpresaResponse(
+                    caso.getId(),
+                    caso.getNombreEmpresa(),
+                    caso.getFechaInicio(),
+                    EstadoFinancieroEmpresaResponse.de(inicial),
+                    EstadoFinancieroEmpresaResponse.de(finalEstado)
+            ));
+        }
+        return resultado;
     }
 
     @Transactional

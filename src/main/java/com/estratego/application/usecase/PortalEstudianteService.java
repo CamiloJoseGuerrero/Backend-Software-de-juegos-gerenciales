@@ -3,6 +3,7 @@ package com.estratego.application.usecase;
 import com.estratego.application.dto.docente.BoletinCasoResponse;
 import com.estratego.application.dto.docente.EstadoFinancieroEmpresaResponse;
 import com.estratego.application.dto.docente.FinancieroCaso;
+import com.estratego.application.dto.empresa.HistoriaEmpresaResponse;
 import com.estratego.application.dto.estudiante.*;
 import com.estratego.domain.model.caso.Caso;
 import com.estratego.domain.model.caso.DecisionCaso;
@@ -25,8 +26,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Lo que ve y hace un estudiante. Reglas (🎨 propuesta del equipo salvo donde se indica):
@@ -80,6 +84,45 @@ public class PortalEstudianteService {
 
         return new MiEmpresaResponse(e.getId(), e.getIdSimulacion(), e.getCodigoEmpresa(), e.getNombre(),
                 e.getEstrategia(), e.getTipoJugador(), e.getEstado(), integrantes);
+    }
+
+    /**
+     * Historia financiera de la empresa del estudiante a lo largo de los casos jugados.
+     */
+    public List<HistoriaEmpresaResponse> historiaEmpresa(Long idEmpresa, String correo) {
+        Long idUsuario = resolverUsuarioId(correo);
+        integranteRepository.findByIdEmpresaAndIdUsuario(idEmpresa, idUsuario)
+                .orElseThrow(() -> new IllegalArgumentException("No perteneces a esta empresa"));
+
+        Empresa empresa = empresaRepository.findById(idEmpresa)
+                .orElseThrow(() -> new IllegalArgumentException("Empresa no encontrada"));
+
+        List<EstadoFinancieroEmpresa> estados = estadoFinancieroEmpresaRepository.listarPorEmpresa(idEmpresa);
+        Map<Long, Map<MomentoEstado, EstadoFinancieroEmpresa>> porCaso = estados.stream()
+                .collect(Collectors.groupingBy(
+                        EstadoFinancieroEmpresa::getIdCaso,
+                        Collectors.toMap(EstadoFinancieroEmpresa::getMomento, Function.identity(), (a, b) -> b)
+                ));
+
+        List<Caso> casosOrdenados = OrdenCasos.ordenados(casoRepository.findByIdSimulacion(empresa.getIdSimulacion()));
+        List<HistoriaEmpresaResponse> resultado = new ArrayList<>();
+        for (Caso caso : casosOrdenados) {
+            Map<MomentoEstado, EstadoFinancieroEmpresa> momentos = porCaso.get(caso.getId());
+            if (momentos == null || momentos.isEmpty()) {
+                continue;
+            }
+            EstadoFinancieroEmpresa inicial = momentos.get(MomentoEstado.INICIAL);
+            EstadoFinancieroEmpresa finalEstado = momentos.get(MomentoEstado.FINAL);
+
+            resultado.add(new HistoriaEmpresaResponse(
+                    caso.getId(),
+                    caso.getNombreEmpresa(),
+                    caso.getFechaInicio(),
+                    EstadoFinancieroEmpresaResponse.de(inicial),
+                    EstadoFinancieroEmpresaResponse.de(finalEstado)
+            ));
+        }
+        return resultado;
     }
 
     public List<CasoEstudianteResponse> casosDeSimulacion(Long idSimulacion, String correo) {
