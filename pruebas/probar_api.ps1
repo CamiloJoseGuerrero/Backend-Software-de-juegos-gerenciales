@@ -290,12 +290,16 @@ Check "  ...trae publicadoEn y actualizadoEn" ($null -ne $bPut.Body.publicadoEn 
 
 $bGet = Api Get "/docente/casos/$idCasoB/boletin" $tDoc
 Check "GET docente devuelve el boletín" ($bGet.Status -eq 200 -and $bGet.Body.idCaso -eq $idCasoB -and $bGet.Body.nota -eq "Inflación proyectada")
+$lCon = Api Get "/docente/simulaciones/$idSimB/casos" $tDoc
+Check "lista de casos marca tieneBoletin = true" ($lCon.Status -eq 200 -and (@($lCon.Body | Where-Object { $_.id -eq $idCasoB })[0].tieneBoletin -eq $true))
 
 $bPut2 = Api Put "/docente/casos/$idCasoB/boletin" $tDoc @{ inflacion = 4.8; tasaInteres = 10.0; tasaCambio = 4050.00; nota = "   " }
 Check "reemplazar con nota vacía guarda null" ($bPut2.Status -eq 200 -and $null -eq $bPut2.Body.nota -and $bPut2.Body.publicadoEn -eq $bPut.Body.publicadoEn)
 
 Esperar (Api Delete "/docente/casos/$idCasoB/boletin" $tDoc) 204 "eliminar boletín -> 204"
 Esperar (Api Get "/docente/casos/$idCasoB/boletin" $tDoc) 204 "consultar tras eliminar -> 204"
+$lSin = Api Get "/docente/casos/$idCasoB" $tDoc
+Check "detalle del caso marca tieneBoletin = false tras eliminar" ($lSin.Status -eq 200 -and $lSin.Body.tieneBoletin -eq $false)
 
 Api Delete "/docente/simulaciones/$idSimB" $tDoc | Out-Null
 
