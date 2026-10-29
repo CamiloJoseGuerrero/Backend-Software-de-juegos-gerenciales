@@ -2,6 +2,7 @@ package com.estratego.presentation.controller;
 
 import com.estratego.application.dto.clasificacion.ClasificacionResponse;
 import com.estratego.application.dto.docente.BoletinCasoResponse;
+import com.estratego.application.dto.empresa.HistoriaEmpresaResponse;
 import com.estratego.application.dto.estudiante.CasoActualResponse;
 import com.estratego.application.dto.estudiante.CasoEstudianteResponse;
 import com.estratego.application.dto.estudiante.DecisionRequest;
@@ -49,6 +50,13 @@ public class EstudianteController {
             @PathVariable Long idEmpresa,
             Authentication authentication) {
         return ResponseEntity.ok(portalEstudianteService.miEmpresa(idEmpresa, authentication.getName()));
+    }
+
+    @GetMapping("/empresas/{idEmpresa}/historia")
+    public ResponseEntity<List<HistoriaEmpresaResponse>> historia(
+            @PathVariable Long idEmpresa,
+            Authentication authentication) {
+        return ResponseEntity.ok(portalEstudianteService.historiaEmpresa(idEmpresa, authentication.getName()));
     }
 
     @GetMapping("/simulaciones/{idSimulacion}/casos")

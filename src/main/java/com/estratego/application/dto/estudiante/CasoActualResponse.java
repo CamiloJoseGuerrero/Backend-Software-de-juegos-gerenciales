@@ -1,5 +1,6 @@
 package com.estratego.application.dto.estudiante;
 
+import com.estratego.application.dto.docente.BoletinCasoResponse;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,4 +21,8 @@ public class CasoActualResponse {
     private CasoEstudianteResponse caso;
     /** null hasta que el líder decide. */
     private DecisionResponse decision;
+    /** Estados inicial y final de la empresa en este caso (D2). */
+    private FinancieroEmpresaCasoResponse financieroEmpresa;
+    /** Boletín del caso si existe y ya es visible (D14). */
+    private BoletinCasoResponse boletin;
 }

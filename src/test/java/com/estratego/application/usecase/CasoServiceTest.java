@@ -7,6 +7,11 @@ import com.estratego.application.dto.docente.FinancieroCaso;
 import com.estratego.application.dto.docente.ImpactoDriverRequest;
 import com.estratego.application.dto.docente.ImpactoOpcionRequest;
 import com.estratego.application.dto.docente.OpcionCasoRequest;
+import com.estratego.application.dto.docente.EmpresaEstadosResponse;
+import com.estratego.domain.model.financiero.EstadoFinanciero;
+import com.estratego.domain.model.financiero.EstadoFinancieroEmpresa;
+import com.estratego.domain.model.financiero.MomentoEstado;
+import com.estratego.domain.model.financiero.OrigenEstado;
 import com.estratego.domain.model.caso.Caso;
 import com.estratego.domain.model.caso.EstadoCaso;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
@@ -59,6 +64,7 @@ class CasoServiceTest {
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @Mock private IntegranteRepository integranteRepository;
     @Mock private com.estratego.domain.repository.BoletinCasoRepository boletinCasoRepository;
+    @Mock private com.estratego.domain.repository.EstadoFinancieroEmpresaRepository estadoFinancieroEmpresaRepository;
 
     @InjectMocks
     private CasoService casoService;
@@ -560,5 +566,76 @@ class CasoServiceTest {
         var r = casoService.listarPorSimulacion(SIMULACION_ID, CORREO_DOCENTE);
 
         assertEquals(List.of(true, false), r.stream().map(c -> c.isTieneBoletin()).toList());
+    }
+
+    @Test
+    void estadosEmpresasLanzaSiCasoNoExiste() {
+        when(casoRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> casoService.estadosEmpresas(999L, CORREO_DOCENTE));
+    }
+
+    @Test
+    void estadosEmpresasLanzaSiSimulacionNoPerteneceADocente() {
+        Caso caso = new Caso();
+        caso.setId(1L);
+        caso.setIdSimulacion(SIMULACION_ID);
+        when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
+
+        Simulacion ajena = new Simulacion(SIMULACION_ID, 888L, "Otra", INICIO_SIM, INICIO_SIM.plusDays(10), EstadoSimulacion.EN_CURSO);
+        when(simulacionRepository.findById(SIMULACION_ID)).thenReturn(Optional.of(ajena));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> casoService.estadosEmpresas(1L, CORREO_DOCENTE));
+    }
+
+    @Test
+    void estadosEmpresasRetornaListaConInicialYFinalOMapeoNull() {
+        simulacionValida();
+        Caso caso = new Caso();
+        caso.setId(1L);
+        caso.setIdSimulacion(SIMULACION_ID);
+        when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
+
+        Empresa e1 = new Empresa(101L, SIMULACION_ID, "EMP-01", "Alfa", null, TipoJugador.MULTIUSUARIO, EstadoEmpresa.ACTIVA);
+        Empresa e2 = new Empresa(102L, SIMULACION_ID, "EMP-02", "Beta", null, TipoJugador.MULTIUSUARIO, EstadoEmpresa.ACTIVA);
+        when(empresaRepository.findByIdSimulacion(SIMULACION_ID)).thenReturn(List.of(e1, e2));
+
+        EstadoFinanciero efInicial = new EstadoFinanciero();
+        efInicial.setEfectivo(new BigDecimal("1000"));
+        efInicial.setVentasNetas(new BigDecimal("500"));
+        EstadoFinancieroEmpresa eeInicial = new EstadoFinancieroEmpresa(
+                1L, 101L, 1L, MomentoEstado.INICIAL, OrigenEstado.DOCENTE, null, efInicial, LocalDateTime.now(), null);
+
+        EstadoFinanciero efFinal = new EstadoFinanciero();
+        efFinal.setEfectivo(new BigDecimal("1200"));
+        efFinal.setVentasNetas(new BigDecimal("800"));
+        EstadoFinancieroEmpresa eeFinal = new EstadoFinancieroEmpresa(
+                2L, 101L, 1L, MomentoEstado.FINAL, OrigenEstado.DECISION, 5L, efFinal, LocalDateTime.now(), null);
+
+        when(estadoFinancieroEmpresaRepository.listarPorCaso(1L)).thenReturn(List.of(eeInicial, eeFinal));
+
+        List<EmpresaEstadosResponse> resultado = casoService.estadosEmpresas(1L, CORREO_DOCENTE);
+
+        assertEquals(2, resultado.size());
+
+        EmpresaEstadosResponse r1 = resultado.get(0);
+        assertEquals(101L, r1.idEmpresa());
+        assertEquals("EMP-01", r1.codigoEmpresa());
+        assertEquals("Alfa", r1.nombre());
+        assertNotNull(r1.inicial());
+        assertEquals(new BigDecimal("1000"), r1.inicial().getEfectivo());
+        assertEquals("docente", r1.inicial().getOrigen());
+        assertNotNull(r1.finalEstado());
+        assertEquals(new BigDecimal("1200"), r1.finalEstado().getEfectivo());
+        assertEquals("decision", r1.finalEstado().getOrigen());
+
+        EmpresaEstadosResponse r2 = resultado.get(1);
+        assertEquals(102L, r2.idEmpresa());
+        assertEquals("EMP-02", r2.codigoEmpresa());
+        assertEquals("Beta", r2.nombre());
+        assertNull(r2.inicial());
+        assertNull(r2.finalEstado());
     }
 }

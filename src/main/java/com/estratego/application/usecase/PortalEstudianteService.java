@@ -1,17 +1,23 @@
 package com.estratego.application.usecase;
 
+import com.estratego.application.dto.docente.BoletinCasoResponse;
+import com.estratego.application.dto.docente.EstadoFinancieroEmpresaResponse;
 import com.estratego.application.dto.docente.FinancieroCaso;
+import com.estratego.application.dto.empresa.HistoriaEmpresaResponse;
 import com.estratego.application.dto.estudiante.*;
 import com.estratego.domain.model.caso.Caso;
 import com.estratego.domain.model.caso.DecisionCaso;
 import com.estratego.domain.model.caso.EstadoCaso;
 import com.estratego.domain.model.caso.OpcionCaso;
 import com.estratego.domain.model.empresa.Empresa;
+import com.estratego.domain.model.financiero.EstadoFinancieroEmpresa;
+import com.estratego.domain.model.financiero.MomentoEstado;
 import com.estratego.domain.model.integrante.Integrante;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.model.usuario.Usuario;
 import com.estratego.domain.repository.*;
+import com.estratego.domain.service.OrdenCasos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +26,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Lo que ve y hace un estudiante. Reglas (🎨 propuesta del equipo salvo donde se indica):
@@ -39,6 +49,8 @@ public class PortalEstudianteService {
     private final SimulacionRepository simulacionRepository;
     private final CasoRepository casoRepository;
     private final DecisionCasoRepository decisionCasoRepository;
+    private final EstadoFinancieroEmpresaRepository estadoFinancieroEmpresaRepository;
+    private final BoletinCasoRepository boletinCasoRepository;
 
     public List<MiSimulacionResponse> misSimulaciones(String correo) {
         List<MiSimulacionResponse> resultado = new ArrayList<>();
@@ -74,13 +86,53 @@ public class PortalEstudianteService {
                 e.getEstrategia(), e.getTipoJugador(), e.getEstado(), integrantes);
     }
 
+    /**
+     * Historia financiera de la empresa del estudiante a lo largo de los casos jugados.
+     */
+    public List<HistoriaEmpresaResponse> historiaEmpresa(Long idEmpresa, String correo) {
+        Long idUsuario = resolverUsuarioId(correo);
+        integranteRepository.findByIdEmpresaAndIdUsuario(idEmpresa, idUsuario)
+                .orElseThrow(() -> new IllegalArgumentException("No perteneces a esta empresa"));
+
+        Empresa empresa = empresaRepository.findById(idEmpresa)
+                .orElseThrow(() -> new IllegalArgumentException("Empresa no encontrada"));
+
+        List<EstadoFinancieroEmpresa> estados = estadoFinancieroEmpresaRepository.listarPorEmpresa(idEmpresa);
+        Map<Long, Map<MomentoEstado, EstadoFinancieroEmpresa>> porCaso = estados.stream()
+                .collect(Collectors.groupingBy(
+                        EstadoFinancieroEmpresa::getIdCaso,
+                        Collectors.toMap(EstadoFinancieroEmpresa::getMomento, Function.identity(), (a, b) -> b)
+                ));
+
+        List<Caso> casosOrdenados = OrdenCasos.ordenados(casoRepository.findByIdSimulacion(empresa.getIdSimulacion()));
+        List<HistoriaEmpresaResponse> resultado = new ArrayList<>();
+        for (Caso caso : casosOrdenados) {
+            Map<MomentoEstado, EstadoFinancieroEmpresa> momentos = porCaso.get(caso.getId());
+            if (momentos == null || momentos.isEmpty()) {
+                continue;
+            }
+            EstadoFinancieroEmpresa inicial = momentos.get(MomentoEstado.INICIAL);
+            EstadoFinancieroEmpresa finalEstado = momentos.get(MomentoEstado.FINAL);
+
+            resultado.add(new HistoriaEmpresaResponse(
+                    caso.getId(),
+                    caso.getNombreEmpresa(),
+                    caso.getFechaInicio(),
+                    EstadoFinancieroEmpresaResponse.de(inicial),
+                    EstadoFinancieroEmpresaResponse.de(finalEstado)
+            ));
+        }
+        return resultado;
+    }
+
     public List<CasoEstudianteResponse> casosDeSimulacion(Long idSimulacion, String correo) {
         Simulacion simulacion = validarParticipacion(idSimulacion, resolverUsuarioId(correo));
         LocalDateTime ahora = LocalDateTime.now();
 
-        return casoRepository.findByIdSimulacion(idSimulacion).stream()
+        List<Caso> todos = casoRepository.findByIdSimulacion(idSimulacion);
+        return todos.stream()
                 .filter(c -> esVisible(c, simulacion, ahora))
-                .map(c -> toResponse(c, ahora))
+                .map(c -> toResponse(c, simulacion, todos, ahora))
                 .toList();
     }
 
@@ -94,7 +146,8 @@ public class PortalEstudianteService {
         if (!esVisible(caso, simulacion, ahora)) {
             throw new IllegalArgumentException("Este caso todavía no está disponible");
         }
-        return toResponse(caso, ahora);
+        List<Caso> todos = casoRepository.findByIdSimulacion(caso.getIdSimulacion());
+        return toResponse(caso, simulacion, todos, ahora);
     }
 
     /**
@@ -122,6 +175,8 @@ public class PortalEstudianteService {
             if (activo.isEmpty()) continue;
 
             Caso caso = activo.get();
+            List<Caso> todos = casoRepository.findByIdSimulacion(p.simulacion().getId());
+
             DecisionResponse decision = decisionCasoRepository
                     .findByIdCasoAndIdEmpresa(caso.getId(), p.empresa().getId())
                     .map(d -> toDecisionResponse(d, caso))
@@ -129,13 +184,42 @@ public class PortalEstudianteService {
 
             boolean puedeDecidir = p.integrante().isEsLider()
                     && decision == null
-                    && enPartida(caso, p.simulacion(), ahora);
+                    && enPartida(caso, p.simulacion(), ahora, todos);
+
+            EstadoFinancieroEmpresa inicial = estadoFinancieroEmpresaRepository
+                    .buscar(p.empresa().getId(), caso.getId(), MomentoEstado.INICIAL)
+                    .orElse(null);
+            EstadoFinancieroEmpresa finalEstado = estadoFinancieroEmpresaRepository
+                    .buscar(p.empresa().getId(), caso.getId(), MomentoEstado.FINAL)
+                    .orElse(null);
+
+            FinancieroEmpresaCasoResponse financieroEmpresa =
+                    new FinancieroEmpresaCasoResponse(
+                            EstadoFinancieroEmpresaResponse.de(inicial),
+                            EstadoFinancieroEmpresaResponse.de(finalEstado)
+                    );
+
+            BoletinCasoResponse boletin = boletinCasoRepository.findByIdCaso(caso.getId())
+                    .filter(b -> caso.getFechaVisualizacion() == null || !ahora.isBefore(caso.getFechaVisualizacion()))
+                    .map(b -> new BoletinCasoResponse(
+                            b.getIdCaso(),
+                            b.getInflacion(),
+                            b.getTasaInteres(),
+                            b.getTasaCambio(),
+                            b.getNota(),
+                            b.getPublicadoEn(),
+                            b.getActualizadoEn()
+                    ))
+                    .orElse(null);
 
             candidatos.add(new CasoActualResponse(
                     p.simulacion().getId(), p.simulacion().getNombre(),
                     p.empresa().getId(), p.empresa().getNombre(),
                     p.integrante().isEsLider(), puedeDecidir,
-                    toResponse(caso, ahora), decision));
+                    toResponse(caso, p.simulacion(), todos, ahora),
+                    decision,
+                    financieroEmpresa,
+                    boletin));
         }
 
         // min() conserva el primero en empate: las participaciones vienen de la simulación más reciente
@@ -182,13 +266,14 @@ public class PortalEstudianteService {
         }
 
         LocalDateTime ahora = LocalDateTime.now();
+        List<Caso> todos = casoRepository.findByIdSimulacion(caso.getIdSimulacion());
         if (ahora.isBefore(caso.getFechaInicio())) {
             throw new IllegalArgumentException("La partida aún no ha iniciado");
         }
-        if (ahora.isAfter(caso.getFechaFin())) {
+        if (ahora.isAfter(caso.getFechaFin()) || esPartidaFinalizada(caso, p.simulacion(), todos, ahora)) {
             throw new IllegalArgumentException("La partida ya terminó");
         }
-        if (!enPartida(caso, p.simulacion(), ahora)) {
+        if (!enPartida(caso, p.simulacion(), ahora, todos)) {
             throw new IllegalArgumentException("La simulación no está en curso");
         }
 
@@ -209,13 +294,45 @@ public class PortalEstudianteService {
 
     // --- helpers ---
 
-    private boolean enPartida(Caso c, Simulacion s, LocalDateTime ahora) {
+    private boolean enPartida(Caso c, Simulacion s, LocalDateTime ahora, List<Caso> todos) {
         boolean simulacionAbierta = s.getEstado() == EstadoSimulacion.PROGRAMADA
                 || s.getEstado() == EstadoSimulacion.EN_CURSO;
         return simulacionAbierta
                 && c.getEstado() == EstadoCaso.ACTIVO
                 && !ahora.isBefore(c.getFechaInicio())
-                && !ahora.isAfter(c.getFechaFin());
+                && !esPartidaFinalizada(c, s, todos, ahora);
+    }
+
+    private boolean enPartida(Caso c, Simulacion s, LocalDateTime ahora) {
+        return enPartida(c, s, ahora, null);
+    }
+
+    private boolean esPartidaFinalizada(Caso c, Simulacion simulacion, List<Caso> casosSimulacion, LocalDateTime ahora) {
+        if (simulacion != null && simulacion.getEstado() == EstadoSimulacion.FINALIZADA) {
+            return true;
+        }
+        if (ahora.isAfter(c.getFechaFin())) {
+            return true;
+        }
+        if (casosSimulacion != null && !casosSimulacion.isEmpty()) {
+            List<Caso> ordenados = OrdenCasos.ordenados(casosSimulacion);
+            int pos = -1;
+            for (int i = 0; i < ordenados.size(); i++) {
+                if (Objects.equals(ordenados.get(i).getId(), c.getId())) {
+                    pos = i;
+                    break;
+                }
+            }
+            if (pos != -1) {
+                for (int j = pos + 1; j < ordenados.size(); j++) {
+                    Caso posterior = ordenados.get(j);
+                    if (posterior.getActivadoEn() != null || posterior.getEstado() == EstadoCaso.ACTIVO) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private boolean esVisible(Caso c, Simulacion s, LocalDateTime ahora) {
@@ -265,9 +382,9 @@ public class PortalEstudianteService {
                 quien, d.getFechaDecision());
     }
 
-    private CasoEstudianteResponse toResponse(Caso c, LocalDateTime ahora) {
+    private CasoEstudianteResponse toResponse(Caso c, Simulacion simulacion, List<Caso> casosSimulacion, LocalDateTime ahora) {
         boolean iniciada = !ahora.isBefore(c.getFechaInicio());
-        boolean finalizada = ahora.isAfter(c.getFechaFin());
+        boolean finalizada = esPartidaFinalizada(c, simulacion, casosSimulacion, ahora);
         List<OpcionEstudianteResponse> opciones = iniciada
                 ? c.getOpciones().stream()
                     .map(o -> new OpcionEstudianteResponse(o.getId(), o.getOrden(), o.getOpcion()))
@@ -281,6 +398,10 @@ public class PortalEstudianteService {
                 c.getPenalizacionMin(), c.getPenalizacionMax(),
                 c.getFechaVisualizacion(), c.getFechaInicio(), c.getFechaFin(),
                 iniciada, finalizada, opciones);
+    }
+
+    private CasoEstudianteResponse toResponse(Caso c, LocalDateTime ahora) {
+        return toResponse(c, null, null, ahora);
     }
 
     private record Participacion(Integrante integrante, Empresa empresa, Simulacion simulacion) {

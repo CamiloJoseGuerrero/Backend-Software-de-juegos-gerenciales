@@ -4,6 +4,8 @@ import com.estratego.application.dto.docente.*;
 import com.estratego.domain.model.caso.*;
 import com.estratego.domain.model.empresa.Empresa;
 import com.estratego.domain.model.financiero.EstadoFinanciero;
+import com.estratego.domain.model.financiero.EstadoFinancieroEmpresa;
+import com.estratego.domain.model.financiero.MomentoEstado;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.BoletinCasoRepository;
@@ -35,6 +37,7 @@ public class CasoService {
     private final IntegranteRepository integranteRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final BoletinCasoRepository boletinCasoRepository;
+    private final EstadoFinancieroEmpresaRepository estadoFinancieroEmpresaRepository;
 
     @Transactional
     public CasoResponse crear(Long idSimulacion, CasoRequest request, String correoDocente) {
@@ -155,6 +158,38 @@ public class CasoService {
             resultado.add(new DecisionEmpresaResponse(e.getId(), e.getCodigoEmpresa(), e.getNombre(), true,
                     d.getIdOpcion(), o != null ? o.getOpcion() : null, o != null ? o.getResultado() : null,
                     quien, d.getFechaDecision()));
+        }
+        return resultado;
+    }
+
+    /**
+     * Estados financieros (inicial y final) de cada empresa de la simulación en este caso.
+     */
+    @Transactional(readOnly = true)
+    public List<EmpresaEstadosResponse> estadosEmpresas(Long id, String correoDocente) {
+        Contexto ctx = obtenerYValidar(id, correoDocente);
+        Caso caso = ctx.caso();
+
+        List<EstadoFinancieroEmpresa> estados = estadoFinancieroEmpresaRepository.listarPorCaso(id);
+        Map<Long, Map<MomentoEstado, EstadoFinancieroEmpresa>> porEmpresaYMomento = estados.stream()
+                .collect(Collectors.groupingBy(
+                        EstadoFinancieroEmpresa::getIdEmpresa,
+                        Collectors.toMap(EstadoFinancieroEmpresa::getMomento, Function.identity(), (a, b) -> b)
+                ));
+
+        List<EmpresaEstadosResponse> resultado = new ArrayList<>();
+        for (Empresa e : empresaRepository.findByIdSimulacion(caso.getIdSimulacion())) {
+            Map<MomentoEstado, EstadoFinancieroEmpresa> momentos = porEmpresaYMomento.get(e.getId());
+            EstadoFinancieroEmpresa inicial = momentos != null ? momentos.get(MomentoEstado.INICIAL) : null;
+            EstadoFinancieroEmpresa finalEstado = momentos != null ? momentos.get(MomentoEstado.FINAL) : null;
+
+            resultado.add(new EmpresaEstadosResponse(
+                    e.getId(),
+                    e.getCodigoEmpresa(),
+                    e.getNombre(),
+                    EstadoFinancieroEmpresaResponse.de(inicial),
+                    EstadoFinancieroEmpresaResponse.de(finalEstado)
+            ));
         }
         return resultado;
     }

@@ -3,6 +3,7 @@ package com.estratego.presentation.controller;
 import com.estratego.application.dto.docente.ActualizarEmpresaRequest;
 import com.estratego.application.dto.docente.CrearEmpresaRequest;
 import com.estratego.application.dto.docente.EmpresaResponse;
+import com.estratego.application.dto.empresa.HistoriaEmpresaResponse;
 import com.estratego.application.usecase.EmpresaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,13 @@ public class EmpresaController {
             @PathVariable Long id,
             Authentication authentication) {
         return ResponseEntity.ok(empresaService.obtener(id, authentication.getName()));
+    }
+
+    @GetMapping("/empresas/{id}/historia")
+    public ResponseEntity<List<HistoriaEmpresaResponse>> historia(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(empresaService.historiaParaDocente(id, authentication.getName()));
     }
 
     @PutMapping("/empresas/{id}")
