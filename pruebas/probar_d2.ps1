@@ -2,13 +2,14 @@
 #  Prueba D2: arrastre del balance entre dos casos, cierre de casos y clasificación encadenada
 #  Uso (PowerShell, con el backend corriendo y la migración 2026-10-09 aplicada):
 #     powershell -ExecutionPolicy Bypass -File .\pruebas\probar_d2.ps1
-#  Opcional: -Base "https://xxxx.ngrok-free.dev/api"   -Docente "otro@test.com" -ClaveDocente "..."
+#  Opcional: -Base "https://xxxx.ngrok-free.dev/api"   -Docente "otro@test.com" -ClaveDocente "..."   -Salida "C:\carpeta"
 #  Cada corrida crea una simulación nueva ("Prueba script <fecha>"), así que se puede repetir.
 # =====================================================================
 param(
     [string]$Base = "http://localhost:8080/api",
     [string]$Docente = "nuevo@test.com",
-    [string]$ClaveDocente = "Password1!"
+    [string]$ClaveDocente = "Password1!",
+    [string]$Salida = $env:TEMP
 )
 
 $ErrorActionPreference = "Stop"
@@ -161,7 +162,8 @@ Check "ordenadas de mayor a menor utilidad" ([decimal]$filas[0].utilidadAcumulad
 
 # ---------------------------------------------------------------------
 Write-Host "`n5. Exportar a Excel" -ForegroundColor Cyan
-$archivo = Join-Path $env:TEMP "estratego-simulacion-$idSim.xlsx"
+if (-not (Test-Path $Salida)) { New-Item -ItemType Directory -Path $Salida | Out-Null }
+$archivo = Join-Path $Salida "estratego-simulacion-$idSim.xlsx"
 try {
     $rx = Invoke-WebRequest -Uri "$Base/docente/simulaciones/$idSim/exportar" -Headers @{ Authorization = "Bearer $tDoc"; "ngrok-skip-browser-warning" = "true" } -UseBasicParsing -OutFile $archivo -PassThru
     $tam = (Get-Item $archivo).Length

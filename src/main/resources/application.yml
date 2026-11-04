@@ -53,7 +53,7 @@ springdoc:
     path: /api-docs
 
 jwt:
-  secret: ${JWT_SECRET:clave-de-desarrollo-local-estratego-con-mas-de-32-bytes-2026-segura}
+  secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:86400000}
 
 app:

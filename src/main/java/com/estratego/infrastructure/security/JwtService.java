@@ -27,7 +27,8 @@ public class JwtService {
     @PostConstruct
     void validateConfiguration() {
         if (jwtSecret == null || jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
-            throw new IllegalStateException("JWT_SECRET debe tener al menos 32 bytes");
+            throw new IllegalStateException("Falta JWT_SECRET (o tiene menos de 32 bytes): defínelo en el .env "
+                    + "o en las variables de entorno del servidor. Ver .env.example");
         }
         if (jwtExpiration <= 0) {
             throw new IllegalStateException("JWT_EXPIRATION debe ser mayor que cero");
