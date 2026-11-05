@@ -18,37 +18,27 @@ Backend del simulador de juegos gerenciales **Estratego**: el docente crea simul
 - **Empresas e integrantes**: empresas `MULTIUSUARIO` / `MONOUSUARIO`, integrantes con departamento y un único líder por empresa.
 - **Casos de decisión** (caso = período): estado financiero de 19 partidas con validación de cuadre, opciones con impacto financiero (`porcentaje` / `monto`) sobre 6 rubros del estado de resultados, un solo caso activo por simulación y penalización para la empresa que no decide.
 - **Portal del estudiante**: sus simulaciones, su empresa, caso actual, decisión del líder (una por empresa y caso).
-- **Clasificación**: ranking por utilidad neta acumulada (docente y estudiante).
+- **Arrastre del balance entre casos (D2)**: cada empresa hereda su propio balance de un caso al siguiente. Al cerrar un caso se calculan y guardan sus estados `INICIAL` y `FINAL` (con penalización si no decidió), automáticamente cada 60 s o al activar el siguiente.
+- **Estados financieros por empresa**: el docente ve el estado inicial/final de cada empresa en un caso (`GET /api/docente/casos/{id}/estados-empresas`) y la historia de una empresa (`GET /api/docente/empresas/{id}/historia`). El estudiante recibe `financieroEmpresa` en `/estudiante/caso-actual` y su historia en `/estudiante/empresas/{idEmpresa}/historia`.
+- **Clasificación**: ranking encadenado por utilidad neta acumulada sobre los estados guardados, con empates (1, 1, 3), para docente y estudiante.
+- **Boletín de factores de entorno (D14)**: por caso, inflación, tasa de interés, tasa de cambio y nota (`PUT/GET/DELETE /api/docente/casos/{id}/boletin`; lectura en `/estudiante/casos/{id}/boletin`). Es solo informativo y no afecta el cálculo. Los casos traen `tieneBoletin`.
+- **Exportación a Excel** de la simulación: clasificación, estados por empresa y decisiones con penalización.
 - **Errores por campo**: los 400 traen `message` y una lista `errores[]` con `campo` y `mensaje`.
 - **Correo de credenciales** a estudiantes nuevos (apagado por defecto; ver configuración).
 
-### En curso — Arrastre del balance entre casos (D2)
-
-Cada empresa hereda su propio balance de un caso al siguiente.
-
-| Pieza | Estado |
-|---|---|
-| Tabla `estado_financiero_empresa` (INICIAL / FINAL por empresa y caso) | ✅ |
-| Motor de arrastre (`domain/service/MotorArrastre`) | ✅ |
-| `esPrimerCaso` en los casos y validación del balance según la posición del caso | ✅ |
-| Cálculo y guardado de los estados durante el juego | ⏳ |
-| Endpoint del docente con estado inicial/final por empresa | ⏳ |
-| `financieroEmpresa` en `/estudiante/caso-actual` | ⏳ |
-| Clasificación encadenada sobre los estados guardados | ⏳ |
-
-Reglas aprobadas:
+### Reglas del arrastre (D2)
 
 1. Solo el **primer caso** de la simulación (el de `fechaInicioPartida` más temprana; en empate, el creado antes) define el balance: exige las 19 partidas y que cuadre. Los siguientes solo piden las 6 partidas del estado de resultados.
 2. Al cerrar un caso, la utilidad neta pasa a **utilidades retenidas** y a **efectivo**: el balance siempre cuadra. El resto del balance pasa igual.
 3. El estado de resultados de cada caso es el escenario que define el docente, sin impactos acumulados.
 4. Flujo operativo = utilidad neta; flujos de inversión y financiación = 0.
+5. Penalización a la empresa que no decide: `utilidad − |utilidad| × p / 100`, con `p` sorteado una sola vez entre el mínimo y el máximo del caso. El castigo se carga a gastos de administración.
 
 Efectivo y utilidades retenidas pueden quedar negativos. Una empresa que entra a mitad de simulación empieza con el balance del docente del primer caso.
 
 ### Pendiente
 
-- Boletín de factores de entorno por caso (D14: inflación, tasa de interés, tasa de cambio). Es solo informativo y no afecta el cálculo.
-- Borrar las tablas de equipos y partidas (fase 2). El código se retiró el 2026-10-20 y esas rutas ya responden 404.
+- Aplicar en Neon la limpieza del esquema (`2026-10-27b_limpieza_esquema.sql`) con `COMMIT`; deja 12 tablas.
 - Contraseña inicial con parte aleatoria y/o cambio obligatorio en el primer ingreso (pendiente de decisión del cliente).
 - Despliegue fuera del PC (Render / Railway).
 
@@ -74,6 +64,7 @@ src/main/java/com/estratego
     ├── persistence/       entity / repository (Spring Data) / adapter (implementa los puertos)
     ├── security/          SecurityConfig, JwtService, JwtAuthenticationFilter
     ├── mail/              CredencialesEmailListener
+    ├── scheduling/        CierreAutomaticoCasos (cierra casos vencidos cada 60 s)
     └── config/            Fechas: zona America/Bogota y deserializador flexible
 
 db/
@@ -107,7 +98,7 @@ Se leen del entorno o de un archivo **`.env`** en la raíz (gracias a `spring-do
 | `DB_URL` | Sí* | JDBC de PostgreSQL (`jdbc:postgresql://<host>/<db>?sslmode=require&currentSchema=public`) |
 | `DB_USERNAME` | Sí* | Usuario de la base |
 | `DB_PASSWORD` | **Sí** | Contraseña de la base |
-| `JWT_SECRET` | En producción | Clave aleatoria de 32+ bytes (sin ella se usa una clave solo para desarrollo) |
+| `JWT_SECRET` | **Sí** | Clave aleatoria de 32+ bytes. Sin ella el backend no arranca. Ver `.env.example` |
 | `JWT_EXPIRATION` | No | Duración del token en ms (por defecto 86400000 = 24 h) |
 | `CORS_ALLOWED_ORIGINS` | No | Orígenes del frontend separados por coma (por defecto `localhost:4200` y `localhost:3000`) |
 | `MAIL_ENABLED` | No | `true` para enviar las credenciales por correo (por defecto `false`) |
@@ -117,7 +108,7 @@ Se leen del entorno o de un archivo **`.env`** en la raíz (gracias a `spring-do
 | `APP_ZONA_HORARIA` | No | Zona para interpretar fechas con `Z` o desfase (por defecto `America/Bogota`) |
 | `DDL_AUTO` / `SHOW_SQL` | No | Por defecto `validate` / `false` |
 
-\* `application.yml` trae valores por defecto para la base compartida; pídele al equipo el `.env` (con la contraseña) por un canal privado.
+\* `application.yml` trae valores por defecto para la base compartida; pídele al equipo el `.env` (con la contraseña) por un canal privado. Copia `.env.example` como `.env` y completa los valores.
 
 ### Base de datos
 
@@ -135,13 +126,18 @@ Se leen del entorno o de un archivo **`.env`** en la raíz (gracias a `spring-do
 | `2026-10-02b_caso_modelo_financiero.sql` | Modelo de 19 partidas e impacto de opciones |
 | `2026-10-05_caso_activado_en.sql` | Fecha de primera activación del caso |
 | `2026-10-09_estado_financiero_empresa.sql` | Estados por empresa y caso (D2) |
+| `2026-10-15_caso_totales_opcionales.sql` | Totales del caso opcionales (casos que no son el primero) |
+| `2026-10-16_estado_penalizacion_porcentaje.sql` | Porcentaje de penalización en el estado guardado |
+| `2026-10-26_boletin_caso.sql` | Tabla `boletin_caso` (D14) |
+| `2026-10-27_borrar_equipos_partidas.sql` | Borra las tablas de equipos y partidas (fase 2) |
+| `2026-10-27b_limpieza_esquema.sql` | Tablas e índices sin uso, FK y CHECK (pendiente de `COMMIT`) |
 
 ---
 
 ## Compilar, probar y ejecutar
 
 ```bash
-mvn clean test          # pruebas unitarias (145 al 2026-10-09)
+mvn clean test          # pruebas unitarias (194 al 2026-11-04)
 mvn spring-boot:run     # http://localhost:8080
 ```
 
