@@ -17,6 +17,13 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.context.request.WebRequest;
 import lombok.extern.slf4j.Slf4j;
 
@@ -173,6 +180,72 @@ public class GlobalExceptionHandler {
                         ? List.of(new ApiError.ErrorCampo(rutaCampo, message)) : null
         );
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
+    // Ruta que no existe (por ejemplo las de equipos/partidas ya retiradas) -> 404
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResourceFound(NoResourceFoundException ex, WebRequest request) {
+        return error(HttpStatus.NOT_FOUND, "La ruta /" + ex.getResourcePath() + " no existe", null);
+    }
+
+    // Método HTTP equivocado (ej. DELETE sobre una ruta que solo acepta GET) -> 405
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, WebRequest request) {
+        String permitidos = ex.getSupportedHttpMethods() == null ? ""
+                : ". Métodos permitidos: " + ex.getSupportedHttpMethods().stream()
+                        .map(Object::toString).sorted().collect(Collectors.joining(", "));
+        return error(HttpStatus.METHOD_NOT_ALLOWED,
+                "El método " + ex.getMethod() + " no está permitido en esta ruta" + permitidos, null);
+    }
+
+    // Content-Type no soportado (ej. enviar texto donde se espera JSON) -> 415
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex, WebRequest request) {
+        return error(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Tipo de contenido no soportado: " + ex.getContentType(), null);
+    }
+
+    // Id o parámetro con tipo equivocado (ej. /casos/abc) -> 400 con el campo
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex, WebRequest request) {
+        String tipo = ex.getRequiredType() == null ? "otro tipo" : ex.getRequiredType().getSimpleName();
+        String message = "El valor '" + ex.getValue() + "' no es válido para " + ex.getName()
+                + " (se espera " + tipo + ")";
+        return error(HttpStatus.BAD_REQUEST, message, ex.getName());
+    }
+
+    // Falta un parámetro obligatorio de la URL (?param=) -> 400 con el campo
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParameter(
+            MissingServletRequestParameterException ex, WebRequest request) {
+        return error(HttpStatus.BAD_REQUEST,
+                "Falta el parámetro obligatorio " + ex.getParameterName(), ex.getParameterName());
+    }
+
+    // Falta la parte del multipart (ej. la carga masiva sin el archivo) -> 400 con el campo
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiError> handleMissingPart(MissingServletRequestPartException ex, WebRequest request) {
+        return error(HttpStatus.BAD_REQUEST,
+                "Falta el archivo en el campo " + ex.getRequestPartName(), ex.getRequestPartName());
+    }
+
+    // Archivo más grande que el límite de subida -> 413
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex, WebRequest request) {
+        return error(HttpStatus.PAYLOAD_TOO_LARGE,
+                "El archivo supera el tamaño máximo permitido", null);
+    }
+
+    private static ResponseEntity<ApiError> error(HttpStatus status, String message, String campo) {
+        ApiError apiError = new ApiError(
+                message,
+                status.value(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME),
+                campo == null ? null : List.of(new ApiError.ErrorCampo(campo, message))
+        );
+        return new ResponseEntity<>(apiError, status);
     }
 
     @ExceptionHandler(Exception.class)
