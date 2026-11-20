@@ -1,0 +1,34 @@
+# Blueprint de Render: New > Blueprint > elegir este repo.
+# Los valores con "sync: false" se piden en el panel de Render al crear el servicio (no van en git).
+services:
+  - type: web
+    name: estratego-backend
+    runtime: docker
+    plan: free
+    region: ohio            # misma región que la base de Neon (us-east-2)
+    branch: develop
+    autoDeploy: true        # cada push a develop vuelve a desplegar
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true # Render genera una clave aleatoria de 256 bits
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false         # URL del frontend desplegado, separadas por coma
+      - key: FRONTEND_URL
+        sync: false
+      - key: MAIL_ENABLED
+        value: "false"      # el plan gratis bloquea los puertos SMTP 25, 465 y 587
+      - key: APP_ZONA_HORARIA
+        value: America/Bogota
+      - key: APP_CIERRE_CASOS_INTERVALO_MS
+        value: "60000"      # cada minuto; si se deja 24/7 más de ~2 semanas, subir a 900000 (ver README)
+      - key: DB_POOL_MAX
+        value: "3"
+      - key: LOG_LEVEL
+        value: INFO

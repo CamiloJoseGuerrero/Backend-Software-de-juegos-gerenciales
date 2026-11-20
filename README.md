@@ -40,7 +40,7 @@ Efectivo y utilidades retenidas pueden quedar negativos. Una empresa que entra a
 
 - Aplicar en Neon la limpieza del esquema (`2026-10-27b_limpieza_esquema.sql`) con `COMMIT`; deja 12 tablas.
 - Contraseña inicial con parte aleatoria y/o cambio obligatorio en el primer ingreso (pendiente de decisión del cliente).
-- Despliegue fuera del PC (Render / Railway).
+- Despliegue en Render: crear el servicio con el Blueprint y configurar el despertador (ver *Despliegue en Render*).
 
 ---
 
@@ -197,6 +197,16 @@ Todas las rutas van bajo `/api`. Excepto login y registro, requieren `Authorizat
 - Los totales financieros (`activoTotal`, `pasivoTotal`, `patrimonio`, `utilidadNeta`) los calcula el backend. Si el cliente los manda, se ignoran.
 
 ---
+
+## Despliegue en Render
+
+El repo trae `Dockerfile` y `render.yaml` (Blueprint). En Render: **New → Blueprint**, elegir este repo y llenar las variables marcadas como `sync: false` (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS`, `FRONTEND_URL`). `JWT_SECRET` la genera Render. Cada push a `develop` vuelve a desplegar.
+
+- **Health check / despertador:** `GET /api/health` → `{"status":"UP"}`. Es público y no toca la base.
+- **El plan gratis se duerme** a los 15 min sin tráfico y tarda ~1 min en despertar. Un servicio externo (cron-job.org) llama a `/api/health` cada 10 min para mantenerlo despierto. Un servicio 24/7 usa ~744 de las 750 horas gratis del mes.
+- **Neon** se suspende a los 5 min sin consultas y el plan gratis da 100 CU-horas al mes (~400 h). El cierre automático revisa cada minuto (`APP_CIERRE_CASOS_INTERVALO_MS=60000`), así que con el backend 24/7 Neon no se suspende y gasta ~42 CU-horas por semana: alcanza para unas 2 semanas al mes. Para dejarlo en línea más tiempo, subir a `900000` (15 min) y la base se dormirá entre revisiones (el pool cierra sus conexiones sin tráfico: `minimum-idle: 0`).
+- **Correo:** el plan gratis bloquea los puertos SMTP 25, 465 y 587, así que `MAIL_ENABLED=false`. Para enviar correos hace falta un proveedor que acepte otro puerto (p. ej. 2525) o un plan pago.
+- **Zona horaria:** la imagen usa `America/Bogota`; sin eso el servidor (en UTC) cerraría los casos 5 horas antes.
 
 ## Reglas de negocio clave
 

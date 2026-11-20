@@ -1,0 +1,13 @@
+# No mandar al build de Docker nada que no sea pom.xml y src
+target/
+.git/
+.github/
+.idea/
+.vscode/
+.env
+.env.*
+*.env
+pruebas/
+db/
+*.xlsx
+*.md

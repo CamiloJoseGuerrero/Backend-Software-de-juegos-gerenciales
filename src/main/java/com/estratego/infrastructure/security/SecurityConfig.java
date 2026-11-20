@@ -46,6 +46,7 @@ public class SecurityConfig {
                         // Permitir preflight OPTIONS sin autenticación — CRUCIAL para CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/registro-docente").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/sesion").authenticated()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
