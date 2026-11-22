@@ -32,7 +32,6 @@ public class EstudianteController {
     private final ClasificacionService clasificacionService;
     private final BoletinCasoService boletinCasoService;
 
-    /** Ranking final: solo con la simulación FINALIZADA (si no, 400). */
     @GetMapping("/simulaciones/{idSimulacion}/clasificacion")
     public ResponseEntity<ClasificacionResponse> clasificacion(
             @PathVariable Long idSimulacion,
@@ -82,7 +81,6 @@ public class EstudianteController {
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    /** 200 con el caso activo, o 204 (sin cuerpo) si el estudiante no tiene caso activo visible. */
     @GetMapping("/caso-actual")
     public ResponseEntity<CasoActualResponse> casoActual(
             @RequestParam(required = false) Long idSimulacion,

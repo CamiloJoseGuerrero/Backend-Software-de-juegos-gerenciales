@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
-/** Las fechas-hora que llegan con "Z" o con desfase se convierten a la zona de la aplicación. */
 @Configuration
 public class FechasConfig {
 

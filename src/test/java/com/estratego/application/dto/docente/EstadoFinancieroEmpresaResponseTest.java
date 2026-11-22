@@ -39,7 +39,7 @@ class EstadoFinancieroEmpresaResponseTest {
         ef.setGastosAdministracion(new BigDecimal("10000"));
         ef.setGastosVentas(new BigDecimal("10000"));
         ef.setGastosFinancieros(new BigDecimal("5000"));
-        ef.setImpuestoRenta(new BigDecimal("5000")); // utilidadNeta = 120000 - 70000 = 50000
+        ef.setImpuestoRenta(new BigDecimal("5000"));
 
         ef.setFlujoOperativo(new BigDecimal("50000"));
         ef.setFlujoInversion(BigDecimal.ZERO);
@@ -61,17 +61,14 @@ class EstadoFinancieroEmpresaResponseTest {
         assertEquals("penalizacion", res.getOrigen());
         assertEquals(new BigDecimal("5.25"), res.getPenalizacionPorcentaje());
 
-        // Totales calculados
         assertEquals(new BigDecimal("400000"), res.getActivoTotal());
         assertEquals(new BigDecimal("200000"), res.getPasivoTotal());
         assertEquals(new BigDecimal("50000"), res.getUtilidadNeta());
-        assertEquals(new BigDecimal("200000"), res.getPatrimonio()); // 150000 + 0 + 50000
+        assertEquals(new BigDecimal("200000"), res.getPatrimonio());
 
-        // 19 partidas
         assertEquals(new BigDecimal("100000"), res.getEfectivo());
         assertEquals(new BigDecimal("120000"), res.getVentasNetas());
 
-        // Indicadores calculados
         assertNotNull(res.getIndicadores());
         assertNotNull(res.getIndicadores().razonCorriente());
         assertNotNull(res.getIndicadores().endeudamiento());

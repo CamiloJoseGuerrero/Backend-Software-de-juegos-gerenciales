@@ -79,10 +79,6 @@ class CasoServiceTest {
                 INICIO_SIM.plusDays(30), EstadoSimulacion.BORRADOR);
     }
 
-    /**
-     * Activo 1.000.000 = Pasivo 400.000 + Patrimonio 600.000
-     * (capital 400.000 + retenidas 100.000 + utilidad neta 100.000).
-     */
     private FinancieroCaso financieroValido() {
         FinancieroCaso f = new FinancieroCaso();
         f.setEfectivo(new BigDecimal("200000"));
@@ -177,7 +173,7 @@ class CasoServiceTest {
     void rechazaBalanceQueNoCuadra() {
         simulacionValida();
         CasoRequest req = requestValido();
-        req.getFinanciero().setEfectivo(new BigDecimal("250000")); // activo sube 50.000
+        req.getFinanciero().setEfectivo(new BigDecimal("250000"));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> casoService.crear(SIMULACION_ID, req, CORREO_DOCENTE));
@@ -334,7 +330,6 @@ class CasoServiceTest {
         orden.verify(casoRepository).desactivarTodos(SIMULACION_ID);
         orden.verify(casoRepository).marcarActivo(5L);
         verify(casoRepository, never()).save(any());
-        // D2: pide sembrar/cerrar los estados financieros de la simulación después del commit
         verify(eventPublisher).publishEvent(
                 new com.estratego.application.event.EstadosFinancierosPendientesEvent(SIMULACION_ID));
     }
@@ -392,9 +387,6 @@ class CasoServiceTest {
         verify(casoRepository, never()).deleteById(any());
     }
 
-    // ---- D2: solo el primer caso de la simulación define el balance ----
-
-    /** Solo las 6 partidas del estado de resultados (utilidad 100.000); sin balance ni flujos. */
     private FinancieroCaso soloEstadoDeResultados() {
         FinancieroCaso f = financieroValido();
         f.setEfectivo(null);
@@ -424,7 +416,6 @@ class CasoServiceTest {
         return c;
     }
 
-    /** requestValido() con sus tres fechas corridas unos días. */
     private CasoRequest requestDesplazado(int dias) {
         CasoRequest r = requestValido();
         r.setFechaVisualizacion(r.getFechaVisualizacion().plusDays(dias));

@@ -10,7 +10,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Mismos nombres que caso.model.ts del front, más idSimulacion. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -31,8 +30,6 @@ public class CasoResponse {
     private LocalDateTime fechaFinPartida;
     private AsignacionEquipos asignacionEquipos;
     private List<OpcionCasoResponse> opciones;
-    /** true si es el primero de su simulación (el único que define el balance inicial). */
     private boolean esPrimerCaso;
-    /** true si el caso tiene boletín de factores de entorno (D14); el detalle va en GET /casos/{id}/boletin. */
     private boolean tieneBoletin;
 }

@@ -16,11 +16,6 @@ public class ApiError {
     private int status;
     private String timestamp;
 
-    /**
-     * Solo en errores de validación (400): un elemento por campo, con la ruta del body
-     * (p. ej. "financiero.impuestoRenta", "opciones[0].impacto.costoVentas.valor").
-     * Se omite en los demás errores.
-     */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<ErrorCampo> errores;
 
@@ -28,7 +23,6 @@ public class ApiError {
         this(message, status, timestamp, null);
     }
 
-    /** {@code campo} es null cuando el error es del objeto completo y no de un campo. */
     public record ErrorCampo(String campo, String mensaje) {
     }
 }

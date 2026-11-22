@@ -7,12 +7,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Orden de los casos dentro de su simulación (caso = período).
- * Van por fecha de inicio de la partida; si empatan, el creado antes (id menor).
- * Un caso todavía sin id (se está creando) va después de los que empatan con él.
- * Solo el primero define el balance inicial: los siguientes lo heredan por empresa (D2).
- */
 public final class OrdenCasos {
 
     public static final Comparator<Caso> ORDEN = Comparator

@@ -90,7 +90,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
     }
 
-    /** Regla de negocio atribuible a un campo (p. ej. el balance no cuadra → "financiero"). */
     @ExceptionHandler(ValidacionException.class)
     public ResponseEntity<ApiError> handleValidacion(ValidacionException ex, WebRequest request) {
         ApiError apiError = new ApiError(
@@ -126,7 +125,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
     }
 
-    // NUEVO: se dispara cuando un save() viola un UNIQUE (correo, identificación)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrityViolation(
             DataIntegrityViolationException ex, WebRequest request) {
@@ -139,7 +137,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
     }
 
-    // NUEVO: @PreAuthorize puede lanzar esto (403 en vez de 401)
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(
             AccessDeniedException ex, WebRequest request) {
@@ -153,7 +150,6 @@ public class GlobalExceptionHandler {
 
     
 
-    // JSON mal formado o valor de enum inválido (ej. departamento = "PRODUCCION") -> 400
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleMessageNotReadable(
             HttpMessageNotReadableException ex, WebRequest request) {
@@ -182,13 +178,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
     }
 
-    // Ruta que no existe (por ejemplo las de equipos/partidas ya retiradas) -> 404
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNoResourceFound(NoResourceFoundException ex, WebRequest request) {
         return error(HttpStatus.NOT_FOUND, "La ruta /" + ex.getResourcePath() + " no existe", null);
     }
 
-    // Método HTTP equivocado (ej. DELETE sobre una ruta que solo acepta GET) -> 405
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiError> handleMethodNotSupported(
             HttpRequestMethodNotSupportedException ex, WebRequest request) {
@@ -199,7 +193,6 @@ public class GlobalExceptionHandler {
                 "El método " + ex.getMethod() + " no está permitido en esta ruta" + permitidos, null);
     }
 
-    // Content-Type no soportado (ej. enviar texto donde se espera JSON) -> 415
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiError> handleMediaTypeNotSupported(
             HttpMediaTypeNotSupportedException ex, WebRequest request) {
@@ -207,7 +200,6 @@ public class GlobalExceptionHandler {
                 "Tipo de contenido no soportado: " + ex.getContentType(), null);
     }
 
-    // Id o parámetro con tipo equivocado (ej. /casos/abc) -> 400 con el campo
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex, WebRequest request) {
         String tipo = ex.getRequiredType() == null ? "otro tipo" : ex.getRequiredType().getSimpleName();
@@ -216,7 +208,6 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, message, ex.getName());
     }
 
-    // Falta un parámetro obligatorio de la URL (?param=) -> 400 con el campo
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiError> handleMissingParameter(
             MissingServletRequestParameterException ex, WebRequest request) {
@@ -224,14 +215,12 @@ public class GlobalExceptionHandler {
                 "Falta el parámetro obligatorio " + ex.getParameterName(), ex.getParameterName());
     }
 
-    // Falta la parte del multipart (ej. la carga masiva sin el archivo) -> 400 con el campo
     @ExceptionHandler(MissingServletRequestPartException.class)
     public ResponseEntity<ApiError> handleMissingPart(MissingServletRequestPartException ex, WebRequest request) {
         return error(HttpStatus.BAD_REQUEST,
                 "Falta el archivo en el campo " + ex.getRequestPartName(), ex.getRequestPartName());
     }
 
-    // Archivo más grande que el límite de subida -> 413
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex, WebRequest request) {
         return error(HttpStatus.PAYLOAD_TOO_LARGE,
@@ -275,7 +264,6 @@ public class GlobalExceptionHandler {
         }
     
 
-    /** Ruta del campo en el JSON: "opciones[0].impacto.costoVentas.tipo". */
     private static String ruta(List<JsonMappingException.Reference> path) {
         StringBuilder sb = new StringBuilder();
         for (JsonMappingException.Reference r : path) {

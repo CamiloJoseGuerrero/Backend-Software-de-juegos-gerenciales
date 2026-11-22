@@ -16,12 +16,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Envía a cada estudiante recién cargado su usuario y contraseña inicial.
- * Corre después del commit y en segundo plano: un correo que falla no afecta la carga.
- * No envía a dominios reservados para pruebas (.local, .test, .example, .invalid, .localhost, example.com…):
- * esos correos rebotan y dañan la reputación de la cuenta que envía.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -29,7 +23,6 @@ public class CredencialesEmailListener {
 
     private final ObjectProvider<JavaMailSender> mailSender;
 
-    /** TLD reservados para pruebas (RFC 2606 / 6761) y dominios de ejemplo. */
     private static final List<String> TLD_DE_PRUEBA = List.of(".local", ".test", ".example", ".invalid", ".localhost");
     private static final List<String> DOMINIOS_DE_PRUEBA = List.of("example.com", "example.net", "example.org", "localhost");
 
@@ -76,7 +69,6 @@ public class CredencialesEmailListener {
                 omitidos > 0 ? " (" + omitidos + " omitidos por dominio de prueba)" : "");
     }
 
-    /** true si el dominio del correo es de prueba o no tiene dominio válido. */
     static boolean esDominioDePrueba(String correo) {
         if (correo == null) return true;
         int arroba = correo.lastIndexOf('@');

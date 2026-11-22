@@ -40,7 +40,6 @@ public class SimulacionService {
     private final IntegranteRepository integranteRepository;
     private final DecisionCasoRepository decisionCasoRepository;
 
-    /** Último aviso de "no arranca" por simulación, para no repetirlo en el log cada minuto. */
     private final java.util.Map<Long, List<ValidacionException.Problema>> avisosNoArranca =
             new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -83,7 +82,6 @@ public class SimulacionService {
         }
 
         validarFechas(request.getFechaInicio(), request.getFechaFin());
-        // Misma regla que al crear. Conservar la fecha que ya tenía se permite (p. ej. solo cambiar el nombre).
         if (!request.getFechaInicio().equals(simulacion.getFechaInicio())
                 && request.getFechaInicio().isBefore(LocalDate.now())) {
             throw new CampoInvalidoException("fechaInicio", "La fecha de inicio no puede ser pasada");
@@ -116,7 +114,6 @@ public class SimulacionService {
     public SimulacionResponse iniciar(Long id, String correoCoordinador) {
         Simulacion simulacion = obtenerYValidar(id, correoCoordinador);
 
-        // Idempotente: el cierre automático pudo haberla iniciado ya al llegar su fecha de inicio
         if (simulacion.getEstado() == EstadoSimulacion.EN_CURSO) {
             return toResponse(simulacion);
         }
@@ -144,30 +141,17 @@ public class SimulacionService {
 
         simulacion.setEstado(EstadoSimulacion.FINALIZADA);
         Simulacion guardada = simulacionRepository.save(simulacion);
-        // D2: al finalizar se cierran todos los casos jugados
         eventPublisher.publishEvent(new EstadosFinancierosPendientesEvent(id));
         return toResponse(guardada);
     }
 
-    /**
-     * Ciclo de vida automático (lo llama el cierre automático cada minuto):
-     * <ul>
-     *   <li>PROGRAMADA → EN_CURSO cuando llega su fecha de inicio.</li>
-     *   <li>EN_CURSO → FINALIZADA cuando termina el día de su fecha de fin (sin fecha de fin, solo a mano).</li>
-     * </ul>
-     * Los endpoints /iniciar y /finalizar siguen sirviendo para hacerlo antes.
-     *
-     * @return las simulaciones que cambiaron de estado (para calcular sus estados financieros)
-     */
     @Transactional
     public List<Long> avanzarAutomaticamente(LocalDate hoy) {
         List<Long> cambiadas = new ArrayList<>();
         for (Simulacion s : simulacionRepository.findByEstado(EstadoSimulacion.PROGRAMADA)) {
             if (s.getFechaInicio() != null && !s.getFechaInicio().isAfter(hoy)) {
-                // Si después de programarla quitaron casos o empresas, no arranca hasta que se corrija
                 List<ValidacionException.Problema> problemas = problemasParaArrancar(s);
                 if (!problemas.isEmpty()) {
-                    // Solo se avisa la primera vez (o si cambian los problemas)
                     if (!problemas.equals(avisosNoArranca.put(s.getId(), problemas))) {
                         log.warn("Simulación {} no arranca: {}", s.getId(), problemas);
                     }
@@ -189,7 +173,6 @@ public class SimulacionService {
         return cambiadas;
     }
 
-    /** PROGRAMADA → BORRADOR (deja de arrancar sola). No se puede si ya hay decisiones. */
     @Transactional
     public SimulacionResponse desprogramar(Long id, String correoCoordinador) {
         Simulacion simulacion = obtenerYValidar(id, correoCoordinador);
@@ -207,11 +190,6 @@ public class SimulacionService {
         return toResponse(simulacionRepository.save(simulacion));
     }
 
-    /**
-     * Lo que le falta a la simulación para poder jugarse (vacío = lista):
-     * al menos un caso, el primer caso con balance completo que cuadre, al menos una empresa con integrantes
-     * y todas las empresas con integrantes con líder.
-     */
     List<ValidacionException.Problema> problemasParaArrancar(Simulacion simulacion) {
         List<ValidacionException.Problema> problemas = new ArrayList<>();
 

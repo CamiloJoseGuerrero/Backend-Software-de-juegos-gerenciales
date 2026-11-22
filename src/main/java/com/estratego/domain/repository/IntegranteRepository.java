@@ -13,10 +13,8 @@ public interface IntegranteRepository {
 
     long countByIdEmpresa(Long idEmpresa);
 
-    /** true si el usuario ya es integrante de alguna empresa de esa simulación. */
     boolean existsEnSimulacion(Long idSimulacion, Long idUsuario);
 
-    /** Quita la marca de líder a quien la tenga en la empresa (se ejecuta de inmediato). */
     void quitarLider(Long idEmpresa);
 
     Integrante save(Integrante integrante);

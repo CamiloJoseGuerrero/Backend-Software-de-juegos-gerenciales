@@ -27,7 +27,6 @@ public class CasoController {
     private final CasoService casoService;
     private final BoletinCasoService boletinCasoService;
 
-    /** Igual que el front: la simulación va en el body (idSimulacion). */
     @PostMapping("/casos")
     public ResponseEntity<CasoResponse> crear(
             @Valid @RequestBody CasoRequest request,

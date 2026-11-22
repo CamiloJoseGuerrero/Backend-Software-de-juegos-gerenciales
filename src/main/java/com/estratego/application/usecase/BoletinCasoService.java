@@ -121,8 +121,6 @@ public class BoletinCasoService {
         return boletinCasoRepository.findByIdCaso(idCaso).map(this::toResponse);
     }
 
-    // --- Helpers de validación y mapeo ---
-
     private ContextoDocente obtenerYValidarDocente(Long idCaso, String correoDocente) {
         Caso caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new IllegalArgumentException("Caso no encontrado"));

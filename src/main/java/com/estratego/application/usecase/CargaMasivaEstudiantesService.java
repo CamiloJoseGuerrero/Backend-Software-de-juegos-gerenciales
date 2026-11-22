@@ -28,12 +28,6 @@ import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.*;
 
-/**
- * Alta de estudiantes por un docente, por Excel o manual.
- * - Si el estudiante no existe: se crea la cuenta y se le envía la contraseña.
- * - Si ya existe (lo cargó otro docente) con el mismo correo e identificación:
- *   solo se agrega a la lista de este docente, sin nueva contraseña.
- */
 @Service
 @RequiredArgsConstructor
 public class CargaMasivaEstudiantesService {
@@ -56,7 +50,6 @@ public class CargaMasivaEstudiantesService {
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
 
-    /** Resultado del alta de una fila: creado (con contraseña) o vinculado (ya existía). */
     private record Alta(CreadoEstudianteResponse creado,
                         EstudiantesCargadosEvent.Credencial credencial,
                         EstudianteResponse vinculado) {}
@@ -149,11 +142,6 @@ public class CargaMasivaEstudiantesService {
         return new CargaMasivaResponse(creados, vinculados, errores);
     }
 
-    /**
-     * Alta manual de un estudiante.
-     * @return el estudiante con {@code creado = true} si se creó la cuenta (la contraseña le llega por correo),
-     *         o {@code creado = false} si ya existía y solo se vinculó.
-     */
     @Transactional
     public CreadoEstudianteResponse crearManual(CrearEstudianteRequest request, String correoDocente) {
         Long idDocente = resolverDocenteId(correoDocente);
@@ -175,10 +163,6 @@ public class CargaMasivaEstudiantesService {
                 false, LocalDateTime.now());
     }
 
-    /**
-     * Crea el estudiante y lo vincula al docente, o, si ya existe, solo lo vincula.
-     * @throws UsuarioDuplicadoException si los datos chocan con otro usuario o ya está en la lista.
-     */
     private Alta registrarOVincular(String nombre, String correo, String identificacion,
                                     Integer edad, String genero, Long idDocente) {
         Optional<Usuario> porCorreo = usuarioRepository.findByCorreo(correo);
@@ -230,7 +214,6 @@ public class CargaMasivaEstudiantesService {
                 null);
     }
 
-    /** Los correos se envían después del commit (ver CredencialesEmailListener). */
     private void publicarCredenciales(List<EstudiantesCargadosEvent.Credencial> credenciales) {
         if (credenciales.isEmpty()) return;
         eventPublisher.publishEvent(new EstudiantesCargadosEvent(credenciales));

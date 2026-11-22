@@ -36,10 +36,6 @@ public class DocenteController {
         );
     }
 
-    /**
-     * Alta manual. 201 si se creó la cuenta (se envía la contraseña por correo);
-     * 200 si el estudiante ya existía y solo se agregó a la lista del docente.
-     */
     @PostMapping
     public ResponseEntity<CreadoEstudianteResponse> crearEstudiante(
             @Valid @RequestBody CrearEstudianteRequest request,
@@ -50,7 +46,6 @@ public class DocenteController {
         return ResponseEntity.status(estado).body(respuesta);
     }
 
-    /** Solo los estudiantes que cargó el docente autenticado. */
     @GetMapping
     public ResponseEntity<List<EstudianteResponse>> listarEstudiantes(Authentication authentication) {
         return ResponseEntity.ok(

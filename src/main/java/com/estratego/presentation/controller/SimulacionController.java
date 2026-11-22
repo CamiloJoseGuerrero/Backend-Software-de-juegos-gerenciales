@@ -30,7 +30,6 @@ public class SimulacionController {
     private final ClasificacionService clasificacionService;
     private final ExportarSimulacionService exportarSimulacionService;
 
-    /** Resultados en Excel: clasificación, estados por empresa (con indicadores) y decisiones. */
     @GetMapping("/{id}/exportar")
     public ResponseEntity<byte[]> exportar(
             @PathVariable Long id,
@@ -44,7 +43,6 @@ public class SimulacionController {
                 .body(archivo.contenido());
     }
 
-    /** Utilidad neta acumulada por empresa (vista previa hasta que la simulación finalice). */
     @GetMapping("/{id}/clasificacion")
     public ResponseEntity<ClasificacionResponse> clasificacion(
             @PathVariable Long id,

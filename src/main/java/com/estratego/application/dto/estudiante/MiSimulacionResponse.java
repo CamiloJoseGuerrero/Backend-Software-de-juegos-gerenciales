@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
-/** Una simulación en la que participa el estudiante, con la empresa en la que está. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

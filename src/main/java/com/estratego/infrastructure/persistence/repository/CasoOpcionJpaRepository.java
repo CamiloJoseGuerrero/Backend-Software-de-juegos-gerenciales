@@ -14,7 +14,6 @@ public interface CasoOpcionJpaRepository extends JpaRepository<CasoOpcionEntity,
 
     List<CasoOpcionEntity> findByIdCasoOrderByOrdenAsc(Long idCaso);
 
-    // Se ejecuta de inmediato: así el UNIQUE (id_caso, orden) no choca al reinsertar
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from CasoOpcionEntity o where o.idCaso = :idCaso")
     int deleteByIdCaso(@Param("idCaso") Long idCaso);

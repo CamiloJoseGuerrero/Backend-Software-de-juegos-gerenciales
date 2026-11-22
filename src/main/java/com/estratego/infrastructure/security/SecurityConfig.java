@@ -43,7 +43,6 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Permitir preflight OPTIONS sin autenticación — CRUCIAL para CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
@@ -54,7 +53,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/estudiante/**").hasRole("ESTUDIANTE")
                         .anyRequest().authenticated()
                 )
-                // Sin token o con token inválido/vencido → 401; con token pero sin el rol → 403. Ambos en JSON.
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((request, response, ex) -> escribirError(response, 401,
                                 "No autenticado: falta el token o venció. Inicia sesión de nuevo"))
@@ -66,7 +64,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /** Mismo formato que ApiError: { message, status, timestamp }. */
     private static void escribirError(jakarta.servlet.http.HttpServletResponse response, int status, String mensaje)
             throws java.io.IOException {
         response.setStatus(status);
@@ -108,16 +105,12 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
         
-        // Cualquier header: el front puede enviar Authorization, ngrok-skip-browser-warning,
-        // Cache-Control, etc. sin que el preflight falle
         configuration.setAllowedHeaders(List.of("*"));
 
 
         configuration.setExposedHeaders(List.of("Authorization", "Content-Type", "Content-Disposition"));
 
 
-        // true: el front puede usar withCredentials / credentials:"include" sin que el navegador
-        // bloquee el preflight. Es seguro porque los orígenes están listados (nunca "*").
         configuration.setAllowCredentials(true);
 
         configuration.setMaxAge(3600L);

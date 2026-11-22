@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Alta manual de un estudiante (mismos datos que una fila del Excel). */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

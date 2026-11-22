@@ -68,7 +68,6 @@ class IntegranteServiceTest {
         when(empresaRepository.findById(EMPRESA_ID)).thenReturn(Optional.of(empresa));
         when(simulacionRepository.findById(SIMULACION_ID)).thenReturn(Optional.of(simulacion));
         when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
-        // El estudiante de prueba fue cargado por este docente
         lenient().when(docenteEstudianteRepository.existeVinculo(DOCENTE_ID, ESTUDIANTE_ID)).thenReturn(true);
     }
 

@@ -18,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/** Ciclo de vida automático de la simulación (lo dispara el cierre automático cada minuto). */
 @ExtendWith(MockitoExtension.class)
 class SimulacionAutomaticaTest {
 
@@ -39,8 +38,6 @@ class SimulacionAutomaticaTest {
         return new Simulacion(id, 99L, "Sim " + id, inicio, fin, estado);
     }
 
-
-    // ---- Simulación lista para jugarse: 1 caso con balance que cuadra y 1 empresa con líder ----
 
     private static com.estratego.domain.model.caso.Caso casoListo(Long idSim) {
         com.estratego.domain.model.caso.Caso c = new com.estratego.domain.model.caso.Caso();

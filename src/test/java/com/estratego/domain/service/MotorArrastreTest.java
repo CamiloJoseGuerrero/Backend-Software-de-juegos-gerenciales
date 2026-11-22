@@ -19,10 +19,6 @@ class MotorArrastreTest {
         assertEquals(0, bd(esperado).compareTo(real), "esperado " + esperado + " pero fue " + real);
     }
 
-    /**
-     * Balance del docente: activo 1.000.000 = pasivo 400.000 + capital 400.000 + retenidas 100.000
-     * + utilidad 100.000 (ventas 800.000 − 500.000 − 80.000 − 60.000 − 20.000 − 40.000).
-     */
     private static Caso primerCaso() {
         EstadoFinanciero ef = new EstadoFinanciero(
                 bd("200000"), bd("150000"), bd("250000"), bd("350000"), bd("50000"),
@@ -39,7 +35,6 @@ class MotorArrastreTest {
         return c;
     }
 
-    /** Escenario del caso 2 (solo estado de resultados): utilidad 120.000. */
     private static Caso segundoCaso() {
         EstadoFinanciero ef = new EstadoFinanciero();
         ef.setVentasNetas(bd("900000"));
@@ -82,14 +77,13 @@ class MotorArrastreTest {
 
         igual("880000", fin.getVentasNetas());
         igual("180000", fin.utilidadNeta());
-        igual("280000", fin.getEfectivo());          // 200.000 + (180.000 − 100.000)
-        igual("100000", fin.getUtilidadesRetenidas()); // pasa a retenidas al abrir el caso siguiente
+        igual("280000", fin.getEfectivo());
+        igual("100000", fin.getUtilidadesRetenidas());
         igual("180000", fin.getFlujoOperativo());
         igual("0", fin.getFlujoInversion());
         igual("0", fin.getFlujoFinanciacion());
         igual("150000", fin.getCuentasPorCobrar());
         assertTrue(fin.cuadra());
-        // Misma utilidad que usa la clasificación
         igual(CalculadoraResultadoCaso.utilidadConDecision(primero, ventasMas10()).toPlainString(), fin.utilidadNeta());
     }
 
@@ -113,7 +107,7 @@ class MotorArrastreTest {
 
         EstadoFinanciero fin = MotorArrastre.finalPenalizado(inicial, bd("8"));
 
-        igual("88000", fin.getGastosAdministracion()); // 80.000 + 8% de 100.000
+        igual("88000", fin.getGastosAdministracion());
         igual("92000", fin.utilidadNeta());
         igual("192000", fin.getEfectivo());
         assertTrue(fin.cuadra());
@@ -128,9 +122,9 @@ class MotorArrastreTest {
 
         EstadoFinanciero ini2 = MotorArrastre.inicialHeredado(fin1, segundoCaso());
 
-        igual("280000", ini2.getUtilidadesRetenidas()); // 100.000 + 180.000
-        igual("400000", ini2.getEfectivo());            // 280.000 + utilidad proyectada 120.000
-        igual("900000", ini2.getVentasNetas());         // escenario fresco, sin impacto acumulado
+        igual("280000", ini2.getUtilidadesRetenidas());
+        igual("400000", ini2.getEfectivo());
+        igual("900000", ini2.getVentasNetas());
         igual("120000", ini2.utilidadNeta());
         igual("120000", ini2.getFlujoOperativo());
         igual("150000", ini2.getCuentasPorCobrar());
@@ -144,19 +138,18 @@ class MotorArrastreTest {
         Caso segundo = segundoCaso();
 
         EstadoFinanciero ini1 = MotorArrastre.inicialDocente(primero, primero);
-        EstadoFinanciero fin1 = MotorArrastre.finalConDecision(ini1, ventasMas10());   // 180.000
+        EstadoFinanciero fin1 = MotorArrastre.finalConDecision(ini1, ventasMas10());
         EstadoFinanciero ini2 = MotorArrastre.inicialHeredado(fin1, segundo);
-        EstadoFinanciero fin2 = MotorArrastre.finalPenalizado(ini2, bd("10"));         // 120.000 − 12.000
+        EstadoFinanciero fin2 = MotorArrastre.finalPenalizado(ini2, bd("10"));
         EstadoFinanciero ini3 = MotorArrastre.inicialHeredado(fin2, segundo);
-        EstadoFinanciero fin3 = MotorArrastre.finalConDecision(ini3, ventasMas10());   // 210.000
+        EstadoFinanciero fin3 = MotorArrastre.finalConDecision(ini3, ventasMas10());
 
         for (EstadoFinanciero e : new EstadoFinanciero[]{ini1, fin1, ini2, fin2, ini3, fin3}) {
             assertTrue(e.cuadra(), "no cuadra: " + e);
         }
         igual("108000", fin2.utilidadNeta());
-        igual("388000", ini3.getUtilidadesRetenidas()); // 100.000 + 180.000 + 108.000
+        igual("388000", ini3.getUtilidadesRetenidas());
         igual("210000", fin3.utilidadNeta());
-        // Todo lo ganado terminó en efectivo: 200.000 − 100.000 (proyección del docente) + 180.000 + 108.000 + 210.000
         igual("598000", fin3.getEfectivo());
     }
 
@@ -170,11 +163,11 @@ class MotorArrastreTest {
                 MotorArrastre.inicialDocente(primero, primero), costoMas500mil);
 
         igual("-400000", fin.utilidadNeta());
-        igual("-300000", fin.getEfectivo()); // 200.000 − 500.000
+        igual("-300000", fin.getEfectivo());
         assertTrue(fin.cuadra());
 
         EstadoFinanciero ini2 = MotorArrastre.inicialHeredado(fin, segundoCaso());
-        igual("-300000", ini2.getUtilidadesRetenidas()); // 100.000 − 400.000
+        igual("-300000", ini2.getUtilidadesRetenidas());
         assertTrue(ini2.cuadra());
     }
 
@@ -185,7 +178,7 @@ class MotorArrastreTest {
         EstadoFinanciero ini = MotorArrastre.inicialDocente(primero, segundoCaso());
 
         igual("100000", ini.getUtilidadesRetenidas());
-        igual("220000", ini.getEfectivo()); // 200.000 − 100.000 (escenario 1) + 120.000 (escenario 2)
+        igual("220000", ini.getEfectivo());
         igual("900000", ini.getVentasNetas());
         igual("120000", ini.getFlujoOperativo());
         igual("0", ini.getFlujoInversion());

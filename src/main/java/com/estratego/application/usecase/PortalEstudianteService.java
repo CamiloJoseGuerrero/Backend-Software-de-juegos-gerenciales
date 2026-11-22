@@ -32,13 +32,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Lo que ve y hace un estudiante. Reglas (🎨 propuesta del equipo salvo donde se indica):
- * - Solo ve simulaciones donde es integrante de alguna empresa.
- * - Un caso es visible desde su fechaVisualizacion y si la simulación no está en BORRADOR.
- * - Las opciones se muestran desde fechaInicioPartida y sin el Resultado.
- * - La decisión la toma el líder por toda la empresa, dentro de la partida, y es permanente.
- */
 @Service
 @RequiredArgsConstructor
 public class PortalEstudianteService {
@@ -86,9 +79,6 @@ public class PortalEstudianteService {
                 e.getEstrategia(), e.getTipoJugador(), e.getEstado(), integrantes);
     }
 
-    /**
-     * Historia financiera de la empresa del estudiante a lo largo de los casos jugados.
-     */
     public List<HistoriaEmpresaResponse> historiaEmpresa(Long idEmpresa, String correo) {
         Long idUsuario = resolverUsuarioId(correo);
         integranteRepository.findByIdEmpresaAndIdUsuario(idEmpresa, idUsuario)
@@ -150,19 +140,6 @@ public class PortalEstudianteService {
         return toResponse(caso, simulacion, todos, ahora);
     }
 
-    /**
-     * El caso ACTIVO y visible del estudiante. Vacío si no hay ninguno.
-     * <p>
-     * Con {@code idSimulacion} se limita a esa simulación. Sin él, si el estudiante está en
-     * varias simulaciones con caso activo, elige por la fase del caso:
-     * <ol>
-     *   <li>partida en curso (si hay varias: la simulación más reciente),</li>
-     *   <li>el próximo caso por empezar (el de inicio más cercano),</li>
-     *   <li>el caso terminado más reciente.</li>
-     * </ol>
-     * Decidir no cambia la elección: depende solo de fechas, para que el estudiante
-     * siga viendo el caso en el que acaba de decidir.
-     */
     public Optional<CasoActualResponse> casoActual(String correo, Long idSimulacion) {
         LocalDateTime ahora = LocalDateTime.now();
 
@@ -222,15 +199,11 @@ public class PortalEstudianteService {
                     boletin));
         }
 
-        // min() conserva el primero en empate: las participaciones vienen de la simulación más reciente
         return candidatos.stream().min(prioridadCasoActual());
     }
 
-    /** Orden de {@link #casoActual}: menor = más relevante para el estudiante. */
     private static Comparator<CasoActualResponse> prioridadCasoActual() {
         Comparator<CasoActualResponse> porFase = Comparator.comparingInt(PortalEstudianteService::fase);
-        // Dentro de la fase: en curso -> empate (gana la simulación más reciente);
-        // próximos -> el que empieza antes; terminados -> el que terminó más tarde
         return porFase.thenComparing((a, b) -> switch (fase(a)) {
             case 1 -> a.getCaso().getFechaInicioPartida().compareTo(b.getCaso().getFechaInicioPartida());
             case 2 -> b.getCaso().getFechaFinPartida().compareTo(a.getCaso().getFechaFinPartida());
@@ -238,7 +211,6 @@ public class PortalEstudianteService {
         });
     }
 
-    /** 0 = partida en curso, 1 = próxima, 2 = terminada. */
     private static int fase(CasoActualResponse r) {
         CasoEstudianteResponse c = r.getCaso();
         if (!c.isPartidaIniciada()) return 1;
@@ -246,7 +218,6 @@ public class PortalEstudianteService {
         return 2;
     }
 
-    /** El líder elige la opción de su empresa. Permanente: no se puede cambiar después. */
     @Transactional
     public DecisionResponse decidir(DecisionRequest request, String correo) {
         Long idUsuario = resolverUsuarioId(correo);
@@ -291,8 +262,6 @@ public class PortalEstudianteService {
                 null, caso.getId(), p.empresa().getId(), request.getIdOpcion(), idUsuario, ahora));
         return toDecisionResponse(guardada, caso);
     }
-
-    // --- helpers ---
 
     private boolean enPartida(Caso c, Simulacion s, LocalDateTime ahora, List<Caso> todos) {
         boolean simulacionAbierta = s.getEstado() == EstadoSimulacion.PROGRAMADA
@@ -340,7 +309,6 @@ public class PortalEstudianteService {
                 && !ahora.isBefore(c.getFechaVisualizacion());
     }
 
-    /** Simulaciones en las que participa el usuario, la más reciente primero. */
     private List<Participacion> participaciones(Long idUsuario) {
         List<Participacion> lista = new ArrayList<>();
         for (Integrante integrante : integranteRepository.findByIdUsuario(idUsuario)) {

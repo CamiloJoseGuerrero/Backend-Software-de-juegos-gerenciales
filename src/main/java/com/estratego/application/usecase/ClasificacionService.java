@@ -25,20 +25,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Clasificación de una simulación: utilidad neta acumulada por empresa.
- *
- * <p>Encadenada (D2): la utilidad de cada caso sale del estado FINAL guardado de la empresa
- * (CalculoEstadosService), que ya incluye la decisión o la penalización sobre su balance heredado.
- * Una empresa sin estados en un caso que sí tiene estados calculados no participó en él (entró tarde)
- * y ese caso no le suma ni le resta.</p>
- *
- * <p>Respaldo: si un caso cerrado todavía no tiene ningún estado FINAL (simulaciones anteriores a D2,
- * o el cierre automático aún no pasó), se calcula al vuelo como antes.</p>
- *
- * <p>Un caso cuenta si se activó alguna vez y está cerrado: la simulación finalizó, ya pasó su fecha de fin
- * o ya se activó un caso posterior (misma regla que el cálculo de estados).</p>
- */
 @Service
 @RequiredArgsConstructor
 public class ClasificacionService {
@@ -51,7 +37,6 @@ public class ClasificacionService {
     private final DecisionCasoRepository decisionCasoRepository;
     private final EstadoFinancieroEmpresaRepository estadoRepository;
 
-    /** El docente la ve en cualquier momento (vista previa mientras la simulación no termina). */
     public ClasificacionResponse paraDocente(Long idSimulacion, String correoDocente) {
         Simulacion simulacion = buscarSimulacion(idSimulacion);
         if (!resolverUsuarioId(correoDocente).equals(simulacion.getIdUsuarioCoordinador())) {
@@ -60,7 +45,6 @@ public class ClasificacionService {
         return calcular(simulacion, LocalDateTime.now());
     }
 
-    /** El estudiante solo la ve cuando la simulación está FINALIZADA. */
     public ClasificacionResponse paraEstudiante(Long idSimulacion, String correoEstudiante) {
         Simulacion simulacion = buscarSimulacion(idSimulacion);
         if (!integranteRepository.existsEnSimulacion(idSimulacion, resolverUsuarioId(correoEstudiante))) {
@@ -89,7 +73,6 @@ public class ClasificacionService {
                     finalizada, 0, List.of());
         }
 
-        // Estados FINAL guardados por caso y empresa (vacío = el caso se calcula al vuelo)
         Map<Long, Map<Long, EstadoFinancieroEmpresa>> finalesPorCaso = new HashMap<>();
         for (Caso c : casos) {
             finalesPorCaso.put(c.getId(), estadoRepository.listarPorCaso(c.getId()).stream()
@@ -114,7 +97,7 @@ public class ClasificacionService {
                 ResultadoCasoResponse r;
                 if (!finales.isEmpty()) {
                     EstadoFinancieroEmpresa fin = finales.get(e.getId());
-                    if (fin == null) continue; // la empresa no participó en este caso
+                    if (fin == null) continue;
                     r = desdeEstado(c, fin);
                 } else {
                     DecisionCaso d = decisionesPorCaso.get(c.getId()).get(e.getId());
@@ -137,7 +120,6 @@ public class ClasificacionService {
                 finalizada, casos.size(), filas);
     }
 
-    /** Resultado del caso tomado del estado FINAL guardado de la empresa. */
     private ResultadoCasoResponse desdeEstado(Caso c, EstadoFinancieroEmpresa fin) {
         boolean decidio = fin.getOrigen() == OrigenEstado.DECISION;
         String opcion = decidio ? c.getOpciones().stream()
@@ -168,7 +150,6 @@ public class ClasificacionService {
                 CalculadoraResultadoCaso.porcentajePenalizacion(c), CalculadoraResultadoCaso.utilidadPenalizada(c));
     }
 
-    /** Empate = misma posición; la siguiente salta (1, 1, 3). */
     private static void asignarPosiciones(List<FilaClasificacionResponse> filas) {
         for (int i = 0; i < filas.size(); i++) {
             boolean empataConAnterior = i > 0

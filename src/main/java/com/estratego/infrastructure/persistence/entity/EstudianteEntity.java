@@ -24,7 +24,6 @@ public class EstudianteEntity {
 
     private Integer semestre;
 
-    // Campos extra (los agregamos nosotros porque el cliente los pidió en el Excel)
     private Integer edad;
 
     @Column(length = 1)

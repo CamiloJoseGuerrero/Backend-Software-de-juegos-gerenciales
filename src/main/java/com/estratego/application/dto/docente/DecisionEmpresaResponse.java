@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/** Para el docente: qué eligió cada empresa de la simulación en un caso (null si aún no decide). */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

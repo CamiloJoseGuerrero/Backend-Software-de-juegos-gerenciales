@@ -202,31 +202,24 @@ class BoletinCasoServiceTest {
         when(simulacionRepository.findById(SIMULACION_ID)).thenReturn(Optional.of(simulacion));
         when(usuarioRepository.findByCorreo(CORREO_DOCENTE)).thenReturn(Optional.of(docente));
 
-        // Inflación menor a -100
         BoletinCasoRequest r1 = new BoletinCasoRequest(new BigDecimal("-100.01"), BigDecimal.ZERO, BigDecimal.TEN, null);
         assertThrows(CampoInvalidoException.class, () -> boletinCasoService.guardarOReemplazar(CASO_ID, r1, CORREO_DOCENTE));
 
-        // Inflación mayor a 1000
         BoletinCasoRequest r2 = new BoletinCasoRequest(new BigDecimal("1000.01"), BigDecimal.ZERO, BigDecimal.TEN, null);
         assertThrows(CampoInvalidoException.class, () -> boletinCasoService.guardarOReemplazar(CASO_ID, r2, CORREO_DOCENTE));
 
-        // Tasa de interés menor a 0
         BoletinCasoRequest r3 = new BoletinCasoRequest(BigDecimal.ZERO, new BigDecimal("-0.01"), BigDecimal.TEN, null);
         assertThrows(CampoInvalidoException.class, () -> boletinCasoService.guardarOReemplazar(CASO_ID, r3, CORREO_DOCENTE));
 
-        // Tasa de interés mayor a 1000
         BoletinCasoRequest r4 = new BoletinCasoRequest(BigDecimal.ZERO, new BigDecimal("1000.01"), BigDecimal.TEN, null);
         assertThrows(CampoInvalidoException.class, () -> boletinCasoService.guardarOReemplazar(CASO_ID, r4, CORREO_DOCENTE));
 
-        // Tasa de cambio igual a 0
         BoletinCasoRequest r5 = new BoletinCasoRequest(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null);
         assertThrows(CampoInvalidoException.class, () -> boletinCasoService.guardarOReemplazar(CASO_ID, r5, CORREO_DOCENTE));
 
-        // Tasa de cambio negativa
         BoletinCasoRequest r6 = new BoletinCasoRequest(BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("-5"), null);
         assertThrows(CampoInvalidoException.class, () -> boletinCasoService.guardarOReemplazar(CASO_ID, r6, CORREO_DOCENTE));
 
-        // Nota mayor a 2000 caracteres
         String notaLarga = "a".repeat(2001);
         BoletinCasoRequest r7 = new BoletinCasoRequest(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ONE, notaLarga);
         assertThrows(CampoInvalidoException.class, () -> boletinCasoService.guardarOReemplazar(CASO_ID, r7, CORREO_DOCENTE));

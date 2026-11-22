@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/** Opción que eligió una empresa (su líder) en un caso. Permanente: no se edita ni se borra. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

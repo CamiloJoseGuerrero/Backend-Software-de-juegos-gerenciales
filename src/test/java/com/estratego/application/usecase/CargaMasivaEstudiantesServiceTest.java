@@ -100,7 +100,6 @@ class CargaMasivaEstudiantesServiceTest {
         assertEquals(20, creado.getEdad());
         assertEquals("F", creado.getGenero());
         assertTrue(creado.isCreado());
-        // La contraseña ya no viaja en la respuesta (va por correo)
         assertFalse(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
                 .valueToTree(creado).has("contrasenaGenerada"));
         assertFalse(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()

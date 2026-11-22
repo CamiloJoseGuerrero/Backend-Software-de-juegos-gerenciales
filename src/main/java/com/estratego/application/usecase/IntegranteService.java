@@ -57,7 +57,6 @@ public class IntegranteService {
             throw new IllegalArgumentException("Una empresa MONOUSUARIO solo puede tener un integrante");
         }
 
-        // En MONOUSUARIO el único integrante es el líder
         boolean esLider = monousuario || Boolean.TRUE.equals(request.getEsLider());
         if (esLider) {
             integranteRepository.quitarLider(idEmpresa);

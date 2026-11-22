@@ -106,23 +106,23 @@ class ExportarSimulacionServiceTest {
             assertEquals(1, clas.getRow(5).getCell(4).getNumericCellValue());
 
             Sheet est = wb.getSheet("Estados por empresa");
-            assertEquals("Inicial", est.getRow(1).getCell(3).getStringCellValue()); // inicial antes que final
+            assertEquals("Inicial", est.getRow(1).getCell(3).getStringCellValue());
             assertEquals("docente", est.getRow(1).getCell(4).getStringCellValue());
             assertEquals("decision", est.getRow(2).getCell(4).getStringCellValue());
-            assertEquals(200000, est.getRow(1).getCell(5).getNumericCellValue());   // efectivo
-            assertEquals(1000000, est.getRow(1).getCell(24).getNumericCellValue()); // activo total
-            assertEquals(2.4, est.getRow(1).getCell(28).getNumericCellValue(), 1e-9); // razón corriente
-            assertEquals("penalizacion", est.getRow(3).getCell(4).getStringCellValue()); // EMP-002 después de EMP-001
-            assertNull(est.getRow(4)); // el caso nunca activado no aparece
+            assertEquals(200000, est.getRow(1).getCell(5).getNumericCellValue());
+            assertEquals(1000000, est.getRow(1).getCell(24).getNumericCellValue());
+            assertEquals(2.4, est.getRow(1).getCell(28).getNumericCellValue(), 1e-9);
+            assertEquals("penalizacion", est.getRow(3).getCell(4).getStringCellValue());
+            assertNull(est.getRow(4));
 
             Sheet dec = wb.getSheet("Decisiones");
-            assertEquals("EMP-001", dec.getRow(1).getCell(1).getStringCellValue()); // ordenadas por código
+            assertEquals("EMP-001", dec.getRow(1).getCell(1).getStringCellValue());
             assertEquals("Sí", dec.getRow(1).getCell(3).getStringCellValue());
             assertEquals("Ampliar", dec.getRow(1).getCell(4).getStringCellValue());
             assertEquals("Ana Pérez", dec.getRow(1).getCell(6).getStringCellValue());
             assertEquals("No", dec.getRow(2).getCell(3).getStringCellValue());
-            assertEquals(22.58, dec.getRow(2).getCell(8).getNumericCellValue(), 1e-9); // % sorteado
-            assertNull(dec.getRow(1).getCell(8)); // quien decidió no tiene penalización
+            assertEquals(22.58, dec.getRow(2).getCell(8).getNumericCellValue(), 1e-9);
+            assertNull(dec.getRow(1).getCell(8));
         }
         verify(estadoRepository, never()).listarPorCaso(8L);
     }

@@ -47,9 +47,6 @@ public class EstadoFinancieroEmpresaResponse {
     
     private IndicadoresFinancieros indicadores;
 
-        /**
-     * Construye la respuesta a partir del modelo de dominio EstadoFinancieroEmpresa.
-     */
     public static EstadoFinancieroEmpresaResponse de(EstadoFinancieroEmpresa e) {
         if (e == null) {
             return null;
@@ -57,25 +54,19 @@ public class EstadoFinancieroEmpresaResponse {
 
         EstadoFinancieroEmpresaResponse r = new EstadoFinancieroEmpresaResponse();
 
-        // 1. Origen en minúsculas (docente, heredado, decision, penalizacion)
         r.origen = e.getOrigen() != null ? e.getOrigen().name().toLowerCase() : null;
 
-        // 2. Porcentaje de penalización
         r.penalizacionPorcentaje = e.getPenalizacionPorcentaje();
 
-        // 3. Partidas, totales e indicadores desde el objeto EstadoFinanciero
         EstadoFinanciero ef = e.getEstado();
         if (ef != null) {
-            // Totales calculados con los métodos de EstadoFinanciero
             r.activoTotal = ef.activoTotal();
             r.pasivoTotal = ef.pasivoTotal();
             r.patrimonio = ef.patrimonio();
             r.utilidadNeta = ef.utilidadNeta();
 
-            // Indicadores (record serializable directamente por Jackson)
             r.indicadores = IndicadoresFinancieros.de(ef);
 
-            // Copia de las 19 partidas
             r.efectivo = ef.getEfectivo();
             r.cuentasPorCobrar = ef.getCuentasPorCobrar();
             r.inventarios = ef.getInventarios();

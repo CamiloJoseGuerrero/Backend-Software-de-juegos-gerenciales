@@ -17,7 +17,6 @@ public class OpcionCasoRequest {
     @NotBlank(message = "Cada opción debe tener su Resultado")
     private String resultado;
 
-    /** Opcional: efecto financiero de elegir esta opción. */
     @Valid
     private ImpactoOpcionRequest impacto;
 

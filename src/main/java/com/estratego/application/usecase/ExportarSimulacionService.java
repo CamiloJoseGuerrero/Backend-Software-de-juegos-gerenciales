@@ -28,12 +28,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Exporta los resultados de una simulación a Excel (opción C), para el docente.
- * Hojas: Clasificación, Estados por empresa (inicial y final de cada caso, con las 19 partidas,
- * los totales y los indicadores) y Decisiones (qué eligió cada empresa en cada caso).
- * Solo lee: no calcula nada que no esté ya en la clasificación o en los estados guardados.
- */
 @Service
 @RequiredArgsConstructor
 public class ExportarSimulacionService {
@@ -47,13 +41,11 @@ public class ExportarSimulacionService {
     private final EstadoFinancieroEmpresaRepository estadoRepository;
     private final UsuarioRepository usuarioRepository;
 
-    /** Archivo listo para descargar. */
     public record Archivo(String nombre, byte[] contenido) {
     }
 
     @Transactional(readOnly = true)
     public Archivo exportar(Long idSimulacion, String correoDocente) {
-        // También valida que la simulación exista y sea del docente
         ClasificacionResponse clasificacion = clasificacionService.paraDocente(idSimulacion, correoDocente);
 
         List<Caso> jugados = OrdenCasos.ordenados(casoRepository.findByIdSimulacion(idSimulacion).stream()
@@ -74,8 +66,6 @@ public class ExportarSimulacionService {
             throw new IllegalStateException("No se pudo generar el Excel de la simulación", e);
         }
     }
-
-    // ---------------------------------------------------------------- hojas
 
     private void hojaClasificacion(Workbook wb, Estilos e, ClasificacionResponse c) {
         Sheet s = wb.createSheet("Clasificación");
@@ -171,7 +161,6 @@ public class ExportarSimulacionService {
                     .collect(Collectors.toMap(DecisionCaso::getIdEmpresa, Function.identity(), (a, b) -> a));
             Map<Long, OpcionCaso> opciones = caso.getOpciones().stream()
                     .collect(Collectors.toMap(OpcionCaso::getId, Function.identity(), (a, b) -> a));
-            // % sorteado de cada empresa penalizada en este caso (estado FINAL)
             Map<Long, BigDecimal> penalizacion = estadoRepository.listarPorCaso(caso.getId()).stream()
                     .filter(x -> x.getMomento() == MomentoEstado.FINAL && x.getPenalizacionPorcentaje() != null)
                     .collect(Collectors.toMap(EstadoFinancieroEmpresa::getIdEmpresa,
@@ -191,15 +180,13 @@ public class ExportarSimulacionService {
                             usuarioRepository.findById(id).map(u -> u.getNombre()).orElse("")), e.texto);
                     texto(row, 7, fecha(d.getFechaDecision()), e.texto);
                 } else {
-                    razon(row, 8, penalizacion.get(em.getId()), e.razon); // vacía si aún no se cerró el caso
+                    razon(row, 8, penalizacion.get(em.getId()), e.razon);
                 }
             }
         }
         anchos(s, 28, 11, 24, 9, 30, 36, 26, 17, 16);
         s.createFreezePane(0, 1);
     }
-
-    // ---------------------------------------------------------------- utilidades
 
     private static List<BigDecimal> partidas(EstadoFinanciero f) {
         return Arrays.asList(
@@ -237,7 +224,6 @@ public class ExportarSimulacionService {
         c.setCellStyle(e.dinero);
     }
 
-    /** null (denominador 0) queda como celda vacía. */
     private static void razon(Row row, int col, BigDecimal v, CellStyle estilo) {
         Cell c = row.createCell(col);
         if (v != null) c.setCellValue(v.doubleValue());
@@ -248,7 +234,6 @@ public class ExportarSimulacionService {
         for (int i = 0; i < caracteres.length; i++) s.setColumnWidth(i, caracteres[i] * 256);
     }
 
-    /** Arial en todo el libro; montos con separador de miles (negativos entre paréntesis), razones y porcentajes. */
     private static final class Estilos {
         final CellStyle titulo, encabezado, texto, entero, dinero, razon, porcentaje;
 

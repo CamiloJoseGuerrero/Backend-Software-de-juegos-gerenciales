@@ -22,7 +22,6 @@ public class EstadoFinancieroEmpresaRepositoryAdapter implements EstadoFinancier
     @Override
     @Transactional
     public EstadoFinancieroEmpresa guardar(EstadoFinancieroEmpresa e) {
-        // Upsert por (empresa, caso, momento): conserva el id de la fila existente
         Long id = jpaRepository
                 .findByIdEmpresaAndIdCasoAndMomento(e.getIdEmpresa(), e.getIdCaso(), e.getMomento())
                 .map(EstadoFinancieroEmpresaEntity::getId)

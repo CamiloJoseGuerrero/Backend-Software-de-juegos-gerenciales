@@ -3,23 +3,6 @@ package com.estratego.domain.model.financiero;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/**
- * Razones financieras de un estado financiero (opción A). Todas como fracción (0.34 = 34 %; el frontend
- * las formatea), con 4 decimales. Un indicador va en null si su denominador es 0, y el ROE también si el
- * patrimonio es negativo (no tiene lectura).
- *
- * <ul>
- *   <li>Activo corriente = efectivo + cuentas por cobrar + inventarios.</li>
- *   <li>Pasivo corriente = cuentas por pagar + obligaciones financieras de corto plazo.</li>
- *   <li>razonCorriente = activo corriente / pasivo corriente.</li>
- *   <li>pruebaAcida = (activo corriente − inventarios) / pasivo corriente.</li>
- *   <li>endeudamiento = pasivo total / activo total.</li>
- *   <li>margenNeto = utilidad neta / ventas netas.</li>
- *   <li>roa = utilidad neta / activo total.</li>
- *   <li>roe = utilidad neta / patrimonio (el patrimonio incluye la utilidad del ejercicio, como en
- *       {@link EstadoFinanciero#patrimonio()}).</li>
- * </ul>
- */
 public record IndicadoresFinancieros(
         BigDecimal razonCorriente,
         BigDecimal pruebaAcida,

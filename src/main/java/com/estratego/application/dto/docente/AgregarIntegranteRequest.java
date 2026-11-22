@@ -14,9 +14,7 @@ public class AgregarIntegranteRequest {
     @NotNull(message = "El id del estudiante es obligatorio")
     private Long idUsuario;
 
-    /** Opcional. Si no llega se usa GERENCIA_GENERAL (igual que el default de la BD). */
     private Departamento departamento;
 
-    /** Opcional. Si es true, reemplaza al líder actual. */
     private Boolean esLider;
 }

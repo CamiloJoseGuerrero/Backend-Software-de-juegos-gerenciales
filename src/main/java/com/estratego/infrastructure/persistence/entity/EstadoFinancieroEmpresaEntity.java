@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-// Requiere db/migraciones/2026-10-09_estado_financiero_empresa.sql
 @Entity
 @Table(name = "estado_financiero_empresa")
 @Data
@@ -42,7 +41,6 @@ public class EstadoFinancieroEmpresaEntity {
     @Column(name = "calculado_en", nullable = false)
     private LocalDateTime calculadoEn;
 
-    /** Mismas 19 columnas que la tabla caso. */
     @Column(name = "penalizacion_porcentaje", precision = 5, scale = 2)
     private java.math.BigDecimal penalizacionPorcentaje;
 

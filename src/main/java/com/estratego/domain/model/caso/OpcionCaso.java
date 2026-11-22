@@ -11,11 +11,8 @@ public class OpcionCaso {
 
     private Long id;
     private Integer orden;
-    /** Nombre literal del cliente: "Opción". */
     private String opcion;
-    /** Nombre literal del cliente: "Resultado". */
     private String resultado;
-    /** Efecto financiero (opcional). */
     private ImpactoOpcion impacto;
 
     public OpcionCaso(Long id, Integer orden, String opcion, String resultado) {

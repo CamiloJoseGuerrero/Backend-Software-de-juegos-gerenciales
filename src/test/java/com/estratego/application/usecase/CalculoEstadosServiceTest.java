@@ -40,7 +40,6 @@ class CalculoEstadosServiceTest {
     private Caso caso1;
     private Caso caso2;
     private final List<Empresa> empresas = new ArrayList<>();
-    /** Por defecto el sorteo cae en el máximo, para que los números de los tests sean fijos. */
     private com.estratego.domain.service.GeneradorAleatorio sorteo = (min, max) -> max;
 
     private static BigDecimal bd(String v) { return new BigDecimal(v); }
@@ -49,7 +48,6 @@ class CalculoEstadosServiceTest {
         assertEquals(0, bd(esperado).compareTo(real), "esperado " + esperado + " pero fue " + real);
     }
 
-    /** Repositorio en memoria con la misma semántica que el real (upsert por empresa, caso y momento). */
     static class EstadosEnMemoria implements EstadoFinancieroEmpresaRepository {
         final List<EstadoFinancieroEmpresa> filas = new ArrayList<>();
         long secuencia = 1;
@@ -95,7 +93,6 @@ class CalculoEstadosServiceTest {
                 EstadoSimulacion.EN_CURSO);
         lenient().when(simulacionRepository.findById(SIM)).thenAnswer(inv -> Optional.of(simulacion));
 
-        // Caso 1: balance del docente (activo 1.000.000; utilidad 100.000), penalización máx. 8 %
         caso1 = new Caso();
         caso1.setId(1L);
         caso1.setIdSimulacion(SIM);
@@ -116,7 +113,6 @@ class CalculoEstadosServiceTest {
                         new ImpactoOpcion(new ImpactoDriver(TipoImpacto.PORCENTAJE, bd("10")), null, null, null, null, null)),
                 new OpcionCaso(12L, 2, "Esperar", "Nada cambia", null))));
 
-        // Caso 2: solo estado de resultados (utilidad 120.000)
         EstadoFinanciero er2 = new EstadoFinanciero();
         er2.setVentasNetas(bd("900000"));
         er2.setCostoVentas(bd("550000"));
@@ -194,17 +190,17 @@ class CalculoEstadosServiceTest {
     @Test
     void alActivarElSiguienteSeCierraElAnteriorYSeHereda() {
         activar(caso1, T0, false);
-        activar(caso2, T0.plusHours(1), true); // antes de que termine el caso 1
+        activar(caso2, T0.plusHours(1), true);
         decidio(1L, 100L, 11L);
 
         servicio(T0.plusHours(1)).procesar(SIM);
 
         EstadoFinancieroEmpresa ini2 = estados.de(100L, 2L, MomentoEstado.INICIAL);
         assertEquals(OrigenEstado.HEREDADO, ini2.getOrigen());
-        igual("280000", ini2.getEstado().getUtilidadesRetenidas()); // 100.000 + 180.000
+        igual("280000", ini2.getEstado().getUtilidadesRetenidas());
         igual("120000", ini2.getEstado().utilidadNeta());
         assertTrue(ini2.getEstado().cuadra());
-        igual("192000", estados.de(200L, 2L, MomentoEstado.INICIAL).getEstado().getUtilidadesRetenidas()); // 100.000 + 92.000
+        igual("192000", estados.de(200L, 2L, MomentoEstado.INICIAL).getEstado().getUtilidadesRetenidas());
         assertTrue(estados.buscar(100L, 2L, MomentoEstado.FINAL).isEmpty());
     }
 
@@ -222,7 +218,7 @@ class CalculoEstadosServiceTest {
         assertTrue(estados.buscar(300L, 1L, MomentoEstado.FINAL).isEmpty());
         EstadoFinancieroEmpresa ini = estados.de(300L, 2L, MomentoEstado.INICIAL);
         assertEquals(OrigenEstado.DOCENTE, ini.getOrigen());
-        igual("220000", ini.getEstado().getEfectivo()); // 200.000 − 100.000 + 120.000
+        igual("220000", ini.getEstado().getEfectivo());
         assertEquals(OrigenEstado.HEREDADO, estados.de(100L, 2L, MomentoEstado.INICIAL).getOrigen());
     }
 
@@ -271,16 +267,15 @@ class CalculoEstadosServiceTest {
 
         servicio(T0.plusHours(3)).procesar(SIM);
 
-        assertEquals(2, pedidos.size()); // un sorteo por cada empresa que no decidió
+        assertEquals(2, pedidos.size());
         igual("2", pedidos.get(0)[0]);
         igual("8", pedidos.get(0)[1]);
         EstadoFinancieroEmpresa fin = estados.de(100L, 1L, MomentoEstado.FINAL);
         assertEquals(OrigenEstado.PENALIZACION, fin.getOrigen());
         igual("5.00", fin.getPenalizacionPorcentaje());
-        igual("95000", fin.getEstado().utilidadNeta()); // 100.000 − 5 %
+        igual("95000", fin.getEstado().utilidadNeta());
         assertTrue(fin.getEstado().cuadra());
 
-        // Ya guardado: otra pasada no vuelve a sortear
         servicio(T0.plusHours(4)).procesar(SIM);
         assertEquals(2, pedidos.size());
     }

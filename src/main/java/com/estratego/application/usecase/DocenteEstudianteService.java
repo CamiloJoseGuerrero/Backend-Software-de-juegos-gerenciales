@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
-/** Consulta de estudiantes: cada docente ve solo los que él cargó. */
 @Service
 @RequiredArgsConstructor
 public class DocenteEstudianteService {
@@ -35,7 +34,6 @@ public class DocenteEstudianteService {
     public EstudianteResponse obtenerEstudiante(Long id, String correoDocente) {
         Long idDocente = resolverDocenteId(correoDocente);
 
-        // Mismo mensaje si no existe o si es de otro docente: no revela estudiantes ajenos
         if (!docenteEstudianteRepository.existeVinculo(idDocente, id)) {
             throw new IllegalArgumentException("Estudiante no encontrado");
         }

@@ -157,8 +157,6 @@ class SimulacionServiceTest {
                 () -> simulacionService.obtener(1L, CORREO_COORDINADOR));
     }
 
-    // ---- Simulación lista para jugarse: 1 caso con balance que cuadra y 1 empresa con líder ----
-
     private static com.estratego.domain.model.caso.Caso casoListo(Long idSim) {
         com.estratego.domain.model.caso.Caso c = new com.estratego.domain.model.caso.Caso();
         c.setId(idSim * 100);

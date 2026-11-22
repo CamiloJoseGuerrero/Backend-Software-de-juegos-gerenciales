@@ -62,7 +62,6 @@ public class CasoService {
         return toResponse(casoRepository.save(caso), primero);
     }
 
-    /** Todos los casos de todas las simulaciones del docente (pestaña "Casos"). */
     public List<CasoResponse> listarDelDocente(String correoDocente) {
         Long idDocente = resolverDocenteId(correoDocente);
         List<Long> idsSimulacion = simulacionRepository.findByIdUsuarioCoordinador(idDocente).stream()
@@ -101,7 +100,6 @@ public class CasoService {
         return toResponse(casoRepository.save(caso), primero);
     }
 
-    /** Deja este caso como el ACTIVO de su simulación; el que estaba activo pasa a BORRADOR. */
     @Transactional
     public CasoResponse activar(Long id, String correoDocente) {
         Contexto ctx = obtenerYValidar(id, correoDocente);
@@ -115,11 +113,9 @@ public class CasoService {
         }
         validarEmpresasConLider(caso.getIdSimulacion());
 
-        // Solo cambia el estado: no toca las opciones (sus ids pueden tener decisiones asociadas)
         casoRepository.desactivarTodos(caso.getIdSimulacion());
         casoRepository.marcarActivo(id);
         caso.setEstado(EstadoCaso.ACTIVO);
-        // D2: cierra el caso anterior y siembra los estados iniciales de este (después del commit)
         eventPublisher.publishEvent(new EstadosFinancierosPendientesEvent(caso.getIdSimulacion()));
         return toResponse(caso);
     }
@@ -135,7 +131,6 @@ public class CasoService {
         casoRepository.deleteById(id);
     }
 
-    /** Qué eligió cada empresa de la simulación en este caso. */
     public List<DecisionEmpresaResponse> decisiones(Long id, String correoDocente) {
         Contexto ctx = obtenerYValidar(id, correoDocente);
         Caso caso = ctx.caso();
@@ -162,9 +157,6 @@ public class CasoService {
         return resultado;
     }
 
-    /**
-     * Estados financieros (inicial y final) de cada empresa de la simulación en este caso.
-     */
     @Transactional(readOnly = true)
     public List<EmpresaEstadosResponse> estadosEmpresas(Long id, String correoDocente) {
         Contexto ctx = obtenerYValidar(id, correoDocente);
@@ -194,11 +186,6 @@ public class CasoService {
         return resultado;
     }
 
-    /**
-     * Una empresa con integrantes y sin líder no podría decidir y acumularía penalización
-     * sin que nadie lo note: no se deja activar el caso hasta que tenga líder.
-     * Las empresas sin integrantes no bloquean.
-     */
     private void validarEmpresasConLider(Long idSimulacion) {
         List<String> sinLider = new ArrayList<>();
         for (Empresa e : empresaRepository.findByIdSimulacion(idSimulacion)) {
@@ -244,18 +231,6 @@ public class CasoService {
         }
     }
 
-    /**
-     * D2: solo el primer caso de la simulación define el balance inicial.
-     * <ul>
-     *   <li>Si el caso que se guarda queda primero: 19 partidas y balance que cuadre.</li>
-     *   <li>Si por mover fechas o eliminar pasa a ser primero otro caso: ese debe tener balance completo
-     *       que cuadre. Solo se revisa cuando el primero cambia, para no bloquear simulaciones viejas.</li>
-     * </ul>
-     *
-     * @param guardado el caso que se crea o edita (null al eliminar)
-     * @param despues  los casos de la simulación como quedarían
-     * @param accion   "mover" o "eliminar", para el mensaje
-     */
     private void validarPosicion(Caso guardado, List<Caso> despues, Optional<Caso> primeroAntes, String accion) {
         Optional<Caso> primero = OrdenCasos.primero(despues);
         if (primero.isEmpty()) return;
@@ -302,10 +277,8 @@ public class CasoService {
         c.setTipo(r.getTipo());
         c.setMision(r.getMision());
         c.setVision(r.getVision());
-        // El backend es la fuente de verdad: los totales se calculan de las partidas
         EstadoFinanciero ef = r.getFinanciero().aEstadoFinanciero();
         c.setFinanciero(ef);
-        // Casos que no son el primero pueden venir sin balance: sus totales quedan null
         boolean conBalance = ef.balanceCompleto();
         c.setActivoTotal(conBalance ? ef.activoTotal() : null);
         c.setPasivoTotal(conBalance ? ef.pasivoTotal() : null);
@@ -353,7 +326,6 @@ public class CasoService {
                 .getId();
     }
 
-    /** esPrimerCaso por simulación (la lista puede traer casos de varias). */
     private List<CasoResponse> conPrimerCaso(List<Caso> casos) {
         Map<Long, Long> primeroPorSimulacion = casos.stream()
                 .collect(Collectors.groupingBy(Caso::getIdSimulacion)).values().stream()

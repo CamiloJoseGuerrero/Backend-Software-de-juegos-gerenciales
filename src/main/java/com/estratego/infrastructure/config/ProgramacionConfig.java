@@ -6,7 +6,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.Clock;
 
-/** Tareas programadas (cierre automático de casos) y el reloj de la aplicación (zona por defecto: Bogotá). */
 @Configuration
 @EnableScheduling
 public class ProgramacionConfig {

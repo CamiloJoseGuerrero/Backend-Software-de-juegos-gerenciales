@@ -19,10 +19,6 @@ public class CreadoEstudianteResponse {
     private Integer edad;
     private String genero;
     private String rol;
-    /**
-     * true si se creó la cuenta (201), false si ya existía y solo se vinculó (200).
-     * No viaja en el JSON: la contraseña inicial ya no se devuelve, llega al estudiante por correo.
-     */
     @JsonIgnore
     private boolean creado;
     private LocalDateTime cargadoEn;

@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** El caso activo de la simulación del estudiante, con su empresa y la decisión (si ya la tomaron). */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,13 +15,9 @@ public class CasoActualResponse {
     private Long idEmpresa;
     private String nombreEmpresa;
     private boolean esLider;
-    /** true si es líder, la partida está en curso y la empresa aún no decide. */
     private boolean puedeDecidir;
     private CasoEstudianteResponse caso;
-    /** null hasta que el líder decide. */
     private DecisionResponse decision;
-    /** Estados inicial y final de la empresa en este caso (D2). */
     private FinancieroEmpresaCasoResponse financieroEmpresa;
-    /** Boletín del caso si existe y ya es visible (D14). */
     private BoletinCasoResponse boletin;
 }

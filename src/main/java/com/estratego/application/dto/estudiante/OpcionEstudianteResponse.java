@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Opción tal como la ve el estudiante: sin el Resultado. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

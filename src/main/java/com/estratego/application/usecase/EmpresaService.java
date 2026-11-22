@@ -76,9 +76,6 @@ public class EmpresaService {
         return toResponse(empresa);
     }
 
-    /**
-     * Historia financiera de la empresa a lo largo de los casos jugados de la simulación.
-     */
     @Transactional(readOnly = true)
     public List<HistoriaEmpresaResponse> historiaParaDocente(Long idEmpresa, String correoDocente) {
         Empresa empresa = obtenerYValidar(idEmpresa, correoDocente);
@@ -157,7 +154,6 @@ public class EmpresaService {
         empresaRepository.deleteById(id);
     }
 
-    /** MONOUSUARIO admite un solo integrante, y ese integrante es el líder. */
     private void pasarAMonousuario(Empresa empresa) {
         List<Integrante> integrantes = integranteRepository.findByIdEmpresa(empresa.getId());
         if (integrantes.size() > 1) {

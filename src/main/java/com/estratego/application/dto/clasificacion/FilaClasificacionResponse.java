@@ -12,13 +12,11 @@ import java.util.List;
 @AllArgsConstructor
 public class FilaClasificacionResponse {
 
-    /** 1 = primera. Empate = misma posición (1, 1, 3). */
     private int posicion;
     private Long idEmpresa;
     private String codigoEmpresa;
     private String nombreEmpresa;
     private BigDecimal utilidadAcumulada;
     private int casosSinDecision;
-    /** Un elemento por caso considerado, en orden de partida. */
     private List<ResultadoCasoResponse> desglose;
 }

@@ -83,7 +83,6 @@ public class AuthService {
 
         Usuario usuarioGuardado = usuarioRepository.save(usuario);
 
-        // Crear fila en 'profesor' (relación 1:1 con usuarios)
         Profesor profesor = new Profesor(usuarioGuardado.getId(), null, null);
         profesorRepository.save(profesor);
 

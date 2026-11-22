@@ -14,7 +14,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** El impacto llega en el JSON de cada opción: se lee con Jackson y se valida con Bean Validation. */
 class ImpactoOpcionRequestTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

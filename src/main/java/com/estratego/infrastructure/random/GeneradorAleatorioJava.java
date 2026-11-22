@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Azar de la JVM: centésimas uniformes entre min y max, ambos incluidos. */
 @Component
 public class GeneradorAleatorioJava implements GeneradorAleatorio {
 

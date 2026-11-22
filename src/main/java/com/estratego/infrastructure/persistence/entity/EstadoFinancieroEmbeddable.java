@@ -8,11 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-/**
- * Las 19 partidas del estado financiero como columnas de la tabla caso.
- * Requiere db/migraciones/2026-10-02b_caso_modelo_financiero.sql.
- * Si todas son NULL (casos anteriores al rediseño), Hibernate deja el objeto en null.
- */
 @Embeddable
 @Data
 @NoArgsConstructor

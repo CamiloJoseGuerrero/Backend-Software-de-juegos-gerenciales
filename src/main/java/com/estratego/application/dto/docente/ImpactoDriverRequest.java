@@ -11,7 +11,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-/** { tipo: 'porcentaje' | 'monto', valor } — positivo sube, negativo baja. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

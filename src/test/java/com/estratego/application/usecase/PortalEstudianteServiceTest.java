@@ -179,8 +179,6 @@ class PortalEstudianteServiceTest {
         assertEquals("Este caso todavía no está disponible", ex.getMessage());
     }
 
-    // ---- caso actual y decisión ----
-
     private void participaComo(boolean lider) {
         when(integranteRepository.findByIdUsuario(ESTUDIANTE_ID)).thenReturn(List.of(
                 new Integrante(1L, EMPRESA_ID, ESTUDIANTE_ID, Departamento.COMERCIAL, lider)));
@@ -229,15 +227,9 @@ class PortalEstudianteServiceTest {
         assertEquals("Resultado secreto", r.getDecision().getResultado());
     }
 
-    // ---- caso actual con varias simulaciones ----
-
     private static final Long SIM2_ID = 11L;
     private static final Long EMPRESA2_ID = 6L;
 
-    /**
-     * Ana está en dos simulaciones: la 10 (más reciente, aparece primero) y la 11.
-     * Es líder en ambas.
-     */
     private void participaEnDosSimulaciones() {
         Simulacion sim2 = new Simulacion(SIM2_ID, 99L, "Otra simulación", LocalDate.now().minusDays(10),
                 LocalDate.now().plusDays(30), EstadoSimulacion.EN_CURSO);
@@ -262,7 +254,6 @@ class PortalEstudianteServiceTest {
     void casoActualSinFiltroPrefiereLaPartidaEnCurso() {
         participaEnDosSimulaciones();
         LocalDateTime ahora = LocalDateTime.now();
-        // Sim 10 (aparece primero): caso ya terminado. Sim 11: caso en partida.
         Caso terminado = casoDe(30L, SIM_ID, ahora.minusDays(3), ahora.minusDays(2));
         Caso enPartida = casoDe(31L, SIM2_ID, ahora.minusHours(1), ahora.plusHours(1));
         when(casoRepository.findActivoBySimulacion(SIM_ID)).thenReturn(Optional.of(terminado));
@@ -281,7 +272,6 @@ class PortalEstudianteServiceTest {
     void casoActualSinFiltroNoCambiaDeSimulacionDespuesDeDecidir() {
         participaEnDosSimulaciones();
         LocalDateTime ahora = LocalDateTime.now();
-        // Las dos con la partida en curso; en la 10 (la más reciente) la empresa ya decidió
         Caso decidido = casoDe(30L, SIM_ID, ahora.minusHours(1), ahora.plusHours(1));
         Caso pendiente = casoDe(31L, SIM2_ID, ahora.minusHours(1), ahora.plusHours(1));
         when(casoRepository.findActivoBySimulacion(SIM_ID)).thenReturn(Optional.of(decidido));
@@ -421,7 +411,6 @@ class PortalEstudianteServiceTest {
         when(integranteRepository.existsEnSimulacion(SIM_ID, ESTUDIANTE_ID)).thenReturn(true);
 
         LocalDateTime ahora = LocalDateTime.now();
-        // Las fechas de partida están en el futuro, pero la simulación ya finalizó
         Caso c = caso(1L, ahora.minusDays(1), ahora.plusHours(1), ahora.plusHours(2));
         when(casoRepository.findById(1L)).thenReturn(Optional.of(c));
         when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c));
@@ -437,12 +426,10 @@ class PortalEstudianteServiceTest {
         when(integranteRepository.existsEnSimulacion(SIM_ID, ESTUDIANTE_ID)).thenReturn(true);
 
         LocalDateTime ahora = LocalDateTime.now();
-        // Caso 1 aún tiene fechaFin en el futuro
         Caso c1 = caso(1L, ahora.minusDays(1), ahora.minusHours(1), ahora.plusHours(2));
         c1.setEstado(EstadoCaso.BORRADOR);
         c1.setActivadoEn(ahora.minusHours(1));
 
-        // Caso 2 es posterior en OrdenCasos y ya está ACTIVO
         Caso c2 = caso(2L, ahora.minusDays(1), ahora.plusHours(3), ahora.plusHours(5));
         c2.setEstado(EstadoCaso.ACTIVO);
         c2.setActivadoEn(ahora);
@@ -506,7 +493,6 @@ class PortalEstudianteServiceTest {
 
         List<HistoriaEmpresaResponse> historia = service.historiaEmpresa(EMPRESA_ID, CORREO);
 
-        // c1 tiene estados, c2 no tiene estados (se omite)
         assertEquals(1, historia.size());
         assertEquals(1L, historia.get(0).idCaso());
         assertEquals("TextilAndes 1", historia.get(0).nombreCaso());

@@ -11,16 +11,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Crear y editar un caso (el PUT reemplaza todo, opciones incluidas).
- * Nombres de campos iguales a caso.model.ts del front. El estado no se envía: se cambia con /activar.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class CasoRequest {
 
-    /** Solo lo usa POST /docente/casos; en /simulaciones/{id}/casos se toma de la ruta. */
     private Long idSimulacion;
 
     @NotBlank(message = "El nombre es obligatorio")
@@ -57,7 +52,6 @@ public class CasoRequest {
     @NotNull(message = "La fecha de fin de la partida es obligatoria")
     private LocalDateTime fechaFinPartida;
 
-    /** 'manual' | 'automatica'. Por defecto 'manual'. */
     private AsignacionEquipos asignacionEquipos;
 
     @NotEmpty(message = "El caso debe tener al menos una opción")

@@ -23,7 +23,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Usa BCrypt real (costo bajo para que sea rápido) para probar el flujo como en producción. */
 @ExtendWith(MockitoExtension.class)
 class CambiarContrasenaServiceTest {
 

@@ -12,10 +12,6 @@ import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Efecto financiero de una opción: hasta 6 rubros, todos opcionales.
- * Una clave desconocida (p. ej. "ventasNeta") se rechaza en vez de perderse en silencio.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -50,7 +46,6 @@ public class ImpactoOpcionRequest {
         return desconocidos == null || desconocidos.isEmpty();
     }
 
-    /** null si no trae ningún rubro. */
     public ImpactoOpcion aDominio() {
         ImpactoOpcion i = new ImpactoOpcion(
                 ventasNetas != null ? ventasNetas.aDominio() : null,

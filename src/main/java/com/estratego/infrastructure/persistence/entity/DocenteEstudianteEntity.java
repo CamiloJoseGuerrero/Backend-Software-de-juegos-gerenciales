@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-// Requiere db/migraciones/2026-10-01_docente_estudiante.sql
 @Entity
 @Table(name = "docente_estudiante")
 @Data

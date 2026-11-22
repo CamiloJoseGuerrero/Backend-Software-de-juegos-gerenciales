@@ -19,26 +19,21 @@ public class Caso {
     private Long id;
     private Long idSimulacion;
 
-    // Información general
     private String nombreEmpresa;
     private String mision;
     private String vision;
     private String tipo;
 
-    // Información financiera inicial (período 0)
     private BigDecimal activoTotal;
     private BigDecimal pasivoTotal;
     private BigDecimal patrimonio;
     private BigDecimal utilidadNeta;
 
-    // Partidas de las que salen los totales de arriba (null en casos anteriores a 2026-10-02)
     private EstadoFinanciero financiero;
 
-    // Penalización por no decidir (%)
     private BigDecimal penalizacionMin;
     private BigDecimal penalizacionMax;
 
-    // Fechas
     private LocalDateTime fechaVisualizacion;
     private LocalDateTime fechaInicio;
     private LocalDateTime fechaFin;
@@ -48,6 +43,5 @@ public class Caso {
     private EstadoCaso estado = EstadoCaso.BORRADOR;
     private AsignacionEquipos asignacionEquipos = AsignacionEquipos.MANUAL;
 
-    /** Primera vez que se activó (null = nunca). Solo los casos activados cuentan en la clasificación. */
     private LocalDateTime activadoEn;
 }

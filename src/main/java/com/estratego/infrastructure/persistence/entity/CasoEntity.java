@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// Requiere db/migraciones/2026-09-28_caso.sql
 @Entity
 @Table(name = "caso")
 @Data
@@ -50,7 +49,6 @@ public class CasoEntity {
     @Column(name = "utilidad_neta", nullable = false, precision = 18, scale = 2)
     private BigDecimal utilidadNeta;
 
-    // Partidas del estado financiero (los 4 totales de arriba se calculan de ellas)
     @Embedded
     private EstadoFinancieroEmbeddable financiero;
 
@@ -69,7 +67,6 @@ public class CasoEntity {
     @Column(name = "fecha_fin", nullable = false)
     private LocalDateTime fechaFin;
 
-    // Requiere db/migraciones/2026-09-28b_caso_estado_y_decision.sql
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)
     private EstadoCaso estado;
@@ -78,7 +75,6 @@ public class CasoEntity {
     @Column(name = "asignacion_equipos", nullable = false, length = 20)
     private AsignacionEquipos asignacionEquipos;
 
-    // Requiere db/migraciones/2026-10-05_caso_activado_en.sql
     @Column(name = "activado_en")
     private LocalDateTime activadoEn;
 }

@@ -2,10 +2,6 @@ package com.estratego.domain.model.caso;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-/**
- * Efecto financiero de elegir una opción. Cada rubro es opcional (null = no cambia).
- * Por ahora solo se guarda; lo aplicará el motor de cálculo cuando exista.
- */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ImpactoOpcion(
         ImpactoDriver ventasNetas,

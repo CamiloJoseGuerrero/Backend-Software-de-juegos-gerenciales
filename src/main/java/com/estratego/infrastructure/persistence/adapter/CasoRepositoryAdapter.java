@@ -76,7 +76,6 @@ public class CasoRepositoryAdapter implements CasoRepository {
 
     @Override
     public void marcarActivo(Long id) {
-        // Hora local (America/Bogota), igual que las demás fechas del caso
         casoJpa.marcarActivo(id, java.time.LocalDateTime.now());
     }
 

@@ -10,7 +10,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Registro y cambio de contraseña usan la misma regla: símbolo = no letra, no número, no espacio. */
 class ContrasenaReglaTest {
 
     private static Validator validator;
@@ -26,10 +25,10 @@ class ContrasenaReglaTest {
             "Password1~   | true",
             "Password1€   | true",
             "Password1_   | true",
-            "Password1    | false",   // sin símbolo
-            "'Pass word1' | false",   // el espacio no cuenta como símbolo
-            "Passwordñ1   | false",   // la ñ es letra
-            "pass1!       | false",   // corta y sin mayúscula
+            "Password1    | false",
+            "'Pass word1' | false",
+            "Passwordñ1   | false",
+            "pass1!       | false",
     })
     void mismaReglaEnRegistroYCambio(String clave, boolean valida) {
         boolean okCambio = validator.validate(new CambiarContrasenaRequest("actual", clave)).isEmpty();

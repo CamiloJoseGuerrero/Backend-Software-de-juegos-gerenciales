@@ -20,7 +20,6 @@ public interface CasoJpaRepository extends JpaRepository<CasoEntity, Long> {
 
     Optional<CasoEntity> findFirstByIdSimulacionAndEstado(Long idSimulacion, EstadoCaso estado);
 
-    // Se ejecuta de inmediato: así el índice "un activo por simulación" no choca al activar otro
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update CasoEntity c set c.estado = com.estratego.domain.model.caso.EstadoCaso.BORRADOR " +
            "where c.idSimulacion = :idSimulacion and c.estado = com.estratego.domain.model.caso.EstadoCaso.ACTIVO")

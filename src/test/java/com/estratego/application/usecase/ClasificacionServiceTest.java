@@ -68,7 +68,6 @@ class ClasificacionServiceTest {
         return new Empresa(id, SIM_ID, codigo, "Empresa " + codigo, null, TipoJugador.MULTIUSUARIO, EstadoEmpresa.ACTIVA);
     }
 
-    /** Utilidad base 100.000, penalización máx. 8 %; opción 1 = ventas +15 %, opción 2 sin impacto. */
     private Caso caso(Long id, LocalDateTime fin, LocalDateTime activadoEn) {
         EstadoFinanciero ef = new EstadoFinanciero();
         ef.setVentasNetas(new BigDecimal("800000"));
@@ -118,9 +117,7 @@ class ClasificacionServiceTest {
         Caso c2 = caso(8L, ahora.minusDays(1), ahora.minusDays(2));
         Caso nuncaActivado = caso(9L, ahora.minusHours(5), null);
         when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c1, c2, nuncaActivado));
-        // Caso 7: la empresa 1 elige la opción con +15 % ventas (800.000 × 1,15 = 920.000 → utilidad 220.000), la 2 la opción sin impacto
         when(decisionCasoRepository.findByIdCaso(7L)).thenReturn(List.of(decision(7L, 1L, 71L), decision(7L, 2L, 72L)));
-        // Caso 8: la 1 vuelve a elegir la opción con impacto; la 2 no decide; la 3 nunca decide
         when(decisionCasoRepository.findByIdCaso(8L)).thenReturn(List.of(decision(8L, 1L, 81L)));
 
         ClasificacionResponse r = service.paraDocente(SIM_ID, DOCENTE);
@@ -128,13 +125,13 @@ class ClasificacionServiceTest {
         assertEquals(2, r.getCasosConsiderados());
         var f = r.getClasificacion();
         assertEquals(1L, f.get(0).getIdEmpresa());
-        assertEquals(new BigDecimal("440000.00"), f.get(0).getUtilidadAcumulada()); // 220.000 × 2
+        assertEquals(new BigDecimal("440000.00"), f.get(0).getUtilidadAcumulada());
         assertEquals(1, f.get(0).getPosicion());
         assertEquals(2L, f.get(1).getIdEmpresa());
-        assertEquals(new BigDecimal("192000.00"), f.get(1).getUtilidadAcumulada()); // 100.000 + 92.000
+        assertEquals(new BigDecimal("192000.00"), f.get(1).getUtilidadAcumulada());
         assertEquals(1, f.get(1).getCasosSinDecision());
         assertEquals(3L, f.get(2).getIdEmpresa());
-        assertEquals(new BigDecimal("184000.00"), f.get(2).getUtilidadAcumulada()); // 92.000 × 2
+        assertEquals(new BigDecimal("184000.00"), f.get(2).getUtilidadAcumulada());
         assertEquals(3, f.get(2).getPosicion());
 
         var desglose = f.get(1).getDesglose();
@@ -198,13 +195,11 @@ class ClasificacionServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.paraDocente(SIM_ID, DOCENTE));
     }
 
-    // ---- D2: clasificación encadenada sobre los estados FINAL guardados ----
-
     private static com.estratego.domain.model.financiero.EstadoFinancieroEmpresa estadoFinal(
             Long idEmpresa, Long idCaso, com.estratego.domain.model.financiero.OrigenEstado origen,
             Long idOpcion, String utilidad) {
         EstadoFinanciero ef = new EstadoFinanciero();
-        ef.setVentasNetas(new BigDecimal(utilidad)); // el resto en 0: utilidad neta = ventas
+        ef.setVentasNetas(new BigDecimal(utilidad));
         return new com.estratego.domain.model.financiero.EstadoFinancieroEmpresa(null, idEmpresa, idCaso,
                 com.estratego.domain.model.financiero.MomentoEstado.FINAL, origen, idOpcion, ef, LocalDateTime.now());
     }
@@ -233,7 +228,7 @@ class ClasificacionServiceTest {
         assertEquals(1, beta.getCasosSinDecision());
         assertEquals(0, new BigDecimal("8").compareTo(beta.getDesglose().get(0).getPenalizacionPorcentaje()));
 
-        var tardia = filas.get(2); // sin estados en el caso: entró tarde, el caso no le suma ni le resta
+        var tardia = filas.get(2);
         assertEquals(3L, tardia.getIdEmpresa());
         assertEquals(0, BigDecimal.ZERO.compareTo(tardia.getUtilidadAcumulada()));
         assertTrue(tardia.getDesglose().isEmpty());
@@ -242,8 +237,8 @@ class ClasificacionServiceTest {
 
     @Test
     void unCasoCuentaComoCerradoCuandoYaSeActivoElSiguiente() {
-        Caso c1 = caso(7L, ahora.plusHours(5), ahora.minusHours(1));       // su fecha de fin no ha llegado
-        Caso c2 = caso(8L, ahora.plusDays(1), ahora.minusMinutes(10));     // pero ya se activó el siguiente
+        Caso c1 = caso(7L, ahora.plusHours(5), ahora.minusHours(1));
+        Caso c2 = caso(8L, ahora.plusDays(1), ahora.minusMinutes(10));
         when(casoRepository.findByIdSimulacion(SIM_ID)).thenReturn(List.of(c2, c1));
 
         ClasificacionResponse r = service.paraDocente(SIM_ID, DOCENTE);

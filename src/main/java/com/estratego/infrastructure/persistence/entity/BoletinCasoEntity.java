@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// Requiere db/migraciones/2026-10-26_boletin_caso.sql
 @Entity
 @Table(name = "boletin_caso")
 @Data

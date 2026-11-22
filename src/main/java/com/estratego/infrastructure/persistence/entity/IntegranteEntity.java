@@ -28,7 +28,6 @@ public class IntegranteEntity {
     @Column(name = "departamento", length = 50)
     private Departamento departamento;
 
-    // Requiere db/migraciones/2026-09-27_integrante_es_lider.sql
     @Column(name = "es_lider", nullable = false)
     private boolean esLider;
 }

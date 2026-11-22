@@ -27,27 +27,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Siembra y cierra los estados financieros de cada empresa caso a caso (D2, arrastre del balance).
- *
- * <p>Casos que cuentan: los que se activaron alguna vez, en el orden de {@link OrdenCasos}.
- * Un caso está <b>cerrado</b> si la simulación finalizó, si ya pasó su fecha de fin, o si ya se activó
- * un caso posterior (las empresas ya no pueden decidir en él).</p>
- *
- * <ul>
- *   <li><b>INICIAL</b>: se siembra mientras el caso está abierto. Si la empresa tiene FINAL del caso anterior,
- *       lo hereda; si no (primer caso o empresa que entró tarde), parte del balance del docente.</li>
- *   <li><b>FINAL</b>: al cerrarse el caso, con la decisión de la empresa o con la penalización si no decidió.
- *       El % de penalización se sortea por empresa entre la mínima y la máxima del caso, una sola vez,
- *       y queda guardado en el estado.</li>
- *   <li>Una empresa que no existía mientras un caso estuvo abierto no recibe estados de ese caso:
- *       empieza en el primer caso abierto en que aparece. Se reconoce porque las demás empresas sí quedaron
- *       sembradas en ese caso y ella no (ni decidió en él).</li>
- * </ul>
- *
- * <p>Idempotente: lo ya calculado no se recalcula (los casos no se pueden editar con la simulación en curso),
- * así que se puede llamar cuantas veces haga falta (al activar, al finalizar y desde el cierre automático).</p>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -61,7 +40,6 @@ public class CalculoEstadosService {
     private final Clock clock;
     private final GeneradorAleatorio generadorAleatorio;
 
-    /** Cuántos estados se crearon en una pasada. */
     public record Resultado(int iniciales, int finales) {
         public static final Resultado NADA = new Resultado(0, 0);
 
@@ -70,18 +48,15 @@ public class CalculoEstadosService {
         }
     }
 
-    /** Las simulaciones en curso: las que el cierre automático revisa periódicamente. */
     public List<Long> simulacionesEnCurso() {
         return simulacionRepository.findByEstado(EstadoSimulacion.EN_CURSO).stream()
                 .map(Simulacion::getId)
                 .toList();
     }
 
-    /** Transacción propia: se llama después del commit de otra (evento) o desde el cierre automático. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Resultado procesar(Long idSimulacion) {
         Simulacion simulacion = simulacionRepository.findById(idSimulacion).orElse(null);
-        // Solo hay juego (decisiones) con la simulación en curso; al finalizar se cierra lo pendiente
         if (simulacion == null || (simulacion.getEstado() != EstadoSimulacion.EN_CURSO
                 && simulacion.getEstado() != EstadoSimulacion.FINALIZADA)) {
             return Resultado.NADA;
@@ -115,7 +90,6 @@ public class CalculoEstadosService {
                         .put(e.getMomento(), e);
             }
         }
-        // Casos en que ya se sembraron estados alguna vez (antes de esta pasada)
         Set<Long> casosSembrados = existentes.values().stream()
                 .flatMap(m -> m.keySet().stream())
                 .collect(Collectors.toSet());
@@ -136,10 +110,6 @@ public class CalculoEstadosService {
 
                 EstadoFinancieroEmpresa inicial = delCaso.get(MomentoEstado.INICIAL);
                 if (inicial == null) {
-                    // Caso ya cerrado, sin historia previa de la empresa, otras empresas sí sembradas y sin
-                    // decisión suya: la empresa no existía mientras el caso estuvo abierto (entró tarde).
-                    // Si nadie quedó sembrado (el backend no corrió mientras el caso estaba abierto),
-                    // se asume que todas participaron.
                     if (cerrado && !participa && casosSembrados.contains(caso.getId())
                             && !decisiones.computeIfAbsent(caso.getId(), this::decisionesPorEmpresa)
                                     .containsKey(empresa.getId())) {
@@ -156,7 +126,7 @@ public class CalculoEstadosService {
                 }
                 participa = true;
 
-                if (!cerrado) break; // solo el último caso jugado puede estar abierto
+                if (!cerrado) break;
 
                 EstadoFinancieroEmpresa fin = delCaso.get(MomentoEstado.FINAL);
                 if (fin == null) {
@@ -190,7 +160,6 @@ public class CalculoEstadosService {
                 ahora);
     }
 
-    /** Sorteo único por empresa entre penalizacionMin y penalizacionMax del caso. */
     private EstadoFinancieroEmpresa penalizado(Empresa empresa, Caso caso, EstadoFinancieroEmpresa inicial,
                                                LocalDateTime ahora) {
         java.math.BigDecimal porcentaje = generadorAleatorio.entre(caso.getPenalizacionMin(), caso.getPenalizacionMax());

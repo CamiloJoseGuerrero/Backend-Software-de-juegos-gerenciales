@@ -237,7 +237,6 @@ class EmpresaServiceTest {
         c3SinEstados.setNombreEmpresa("Caso 3");
         c3SinEstados.setFechaInicio(t3);
 
-        // Devolvemos los casos desordenados para verificar que OrdenCasos los ordena
         when(casoRepository.findByIdSimulacion(SIMULACION_ID)).thenReturn(List.of(c2, c3SinEstados, c1));
 
         EstadoFinanciero ef1 = new EstadoFinanciero();
@@ -255,13 +254,11 @@ class EmpresaServiceTest {
         EstadoFinancieroEmpresa ee2Inicial = new EstadoFinancieroEmpresa(
                 3L, 1L, 20L, MomentoEstado.INICIAL, OrigenEstado.HEREDADO, null, ef3, LocalDateTime.now(), null);
 
-        // Caso 2 solo tiene INICIAL (en curso, final es null)
         when(estadoFinancieroEmpresaRepository.listarPorEmpresa(1L))
                 .thenReturn(List.of(ee1Inicial, ee1Final, ee2Inicial));
 
         List<HistoriaEmpresaResponse> historia = empresaService.historiaParaDocente(1L, CORREO_DOCENTE);
 
-        // Deben ser 2 casos (c1 y c2), omitiendo c3SinEstados
         assertEquals(2, historia.size());
 
         HistoriaEmpresaResponse h1 = historia.get(0);
@@ -279,6 +276,6 @@ class EmpresaServiceTest {
         assertEquals(t2, h2.fechaInicioPartida());
         assertNotNull(h2.inicial());
         assertEquals(new BigDecimal("1500"), h2.inicial().getEfectivo());
-        assertNull(h2.finalEstado()); // Caso en curso sin final
+        assertNull(h2.finalEstado());
     }
 }

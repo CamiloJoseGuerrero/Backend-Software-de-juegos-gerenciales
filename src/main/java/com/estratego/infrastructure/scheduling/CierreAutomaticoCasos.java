@@ -16,19 +16,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Cierre automático (D2), cada minuto:
- * <ol>
- *   <li>Avanza el ciclo de vida de las simulaciones: PROGRAMADA → EN_CURSO al llegar su fecha de inicio,
- *       EN_CURSO → FINALIZADA al terminar el día de su fecha de fin.</li>
- *   <li>Cuando pasa la fecha de fin de un caso, calcula los estados FINAL de las empresas (con su decisión
- *       o con la penalización) sin que el docente haga nada. También siembra los INICIAL de empresas que se
- *       agreguen con el caso abierto.</li>
- * </ol>
- *
- * <p>Además reacciona de inmediato (después del commit) cuando se activa un caso o se inicia/finaliza
- * una simulación. Cada simulación se procesa en su propia transacción: un error en una no frena a las demás.</p>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -45,7 +32,7 @@ public class CierreAutomaticoCasos {
         try {
             List<Long> cambiadas = simulacionService.avanzarAutomaticamente(LocalDate.now(clock));
             if (!cambiadas.isEmpty()) log.info("Simulaciones que cambiaron de estado solas: {}", cambiadas);
-            porProcesar.addAll(cambiadas); // incluye las recién finalizadas, que ya no están EN_CURSO
+            porProcesar.addAll(cambiadas);
         } catch (RuntimeException ex) {
             log.error("No se pudo avanzar el estado de las simulaciones", ex);
         }

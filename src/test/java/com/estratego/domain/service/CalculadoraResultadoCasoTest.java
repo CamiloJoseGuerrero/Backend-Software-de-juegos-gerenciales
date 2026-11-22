@@ -15,7 +15,6 @@ class CalculadoraResultadoCasoTest {
 
     private static BigDecimal bd(String v) { return new BigDecimal(v); }
 
-    /** Ventas 800.000 − costo 500.000 − admin 80.000 − ventas 60.000 − financieros 20.000 − impuesto 40.000 = 100.000. */
     private Caso caso() {
         EstadoFinanciero ef = new EstadoFinanciero();
         ef.setVentasNetas(bd("800000"));
@@ -42,14 +41,12 @@ class CalculadoraResultadoCasoTest {
 
     @Test
     void aplicaPorcentajeYMonto() {
-        // ventas +15 % = 920.000; gastos financieros +30.000 = 50.000 → 190.000
         ImpactoOpcion i = new ImpactoOpcion(pct("15"), null, null, null, monto("30000"), null);
         assertEquals(bd("190000.00"), CalculadoraResultadoCaso.utilidadConDecision(caso(), i));
     }
 
     @Test
     void unRubroNuncaQuedaNegativo() {
-        // costo de ventas −600.000 → 0 (no −100.000) → utilidad 600.000
         ImpactoOpcion i = new ImpactoOpcion(null, monto("-600000"), null, null, null, null);
         assertEquals(bd("600000.00"), CalculadoraResultadoCaso.utilidadConDecision(caso(), i));
     }
@@ -64,7 +61,6 @@ class CalculadoraResultadoCasoTest {
     void conPerdidaLaPenalizacionLaHaceMasGrande() {
         Caso c = caso();
         c.setUtilidadNeta(bd("-50000"));
-        // −50.000 − 8 % de 50.000 = −54.000 (nunca −46.000)
         assertEquals(bd("-54000.00"), CalculadoraResultadoCaso.utilidadPenalizada(c));
     }
 
