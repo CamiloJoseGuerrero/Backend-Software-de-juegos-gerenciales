@@ -11,6 +11,10 @@ public interface SimulacionRepository {
 
     List<Simulacion> findByIdUsuarioCoordinador(Long idUsuarioCoordinador);
 
+    List<Simulacion> findByIdUsuarioCoordinadorAndIdCurso(Long idUsuarioCoordinador, Long idCurso);
+
+    long countByIdCurso(Long idCurso);
+
     List<Simulacion> findByEstado(com.estratego.domain.model.simulacion.EstadoSimulacion estado);
 
     Simulacion save(Simulacion simulacion);

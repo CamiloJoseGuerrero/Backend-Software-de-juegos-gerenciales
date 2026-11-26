@@ -11,6 +11,7 @@ import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.CursoEstudianteRepository;
 import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EmpresaRepository;
 import com.estratego.domain.repository.IntegranteRepository;
@@ -31,6 +32,7 @@ public class IntegranteService {
     private final SimulacionRepository simulacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final DocenteEstudianteRepository docenteEstudianteRepository;
+    private final CursoEstudianteRepository cursoEstudianteRepository;
 
     @Transactional
     public IntegranteResponse agregar(Long idEmpresa, AgregarIntegranteRequest request, String correoDocente) {
@@ -45,6 +47,10 @@ public class IntegranteService {
         if (!docenteEstudianteRepository.existeVinculo(
                 ctx.simulacion().getIdUsuarioCoordinador(), usuario.getId())) {
             throw new IllegalArgumentException("El estudiante no está en tu lista de estudiantes");
+        }
+        if (ctx.simulacion().getIdCurso() != null
+                && !cursoEstudianteRepository.existeVinculo(ctx.simulacion().getIdCurso(), usuario.getId())) {
+            throw new IllegalArgumentException("El estudiante no pertenece al curso de esta simulación");
         }
 
         if (integranteRepository.existsEnSimulacion(ctx.simulacion().getId(), usuario.getId())) {

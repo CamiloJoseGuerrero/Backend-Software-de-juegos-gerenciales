@@ -18,4 +18,10 @@ public class SimulacionResponse {
     private LocalDate fechaInicio;
     private LocalDate fechaFin;
     private EstadoSimulacion estado;
+    private Long idCurso;
+
+    public SimulacionResponse(Long id, Long idUsuarioCoordinador, String nombre,
+                              LocalDate fechaInicio, LocalDate fechaFin, EstadoSimulacion estado) {
+        this(id, idUsuarioCoordinador, nombre, fechaInicio, fechaFin, estado, null);
+    }
 }

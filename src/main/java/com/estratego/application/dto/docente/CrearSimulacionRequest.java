@@ -24,4 +24,11 @@ public class CrearSimulacionRequest {
     private LocalDate fechaInicio;
 
     private LocalDate fechaFin;
+
+    /** Curso opcional al que pertenece la simulación. */
+    private Long idCurso;
+
+    public CrearSimulacionRequest(String nombre, LocalDate fechaInicio, LocalDate fechaFin) {
+        this(nombre, fechaInicio, fechaFin, null);
+    }
 }

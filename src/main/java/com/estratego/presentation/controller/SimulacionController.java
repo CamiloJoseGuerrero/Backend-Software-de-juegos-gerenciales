@@ -59,8 +59,10 @@ public class SimulacionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SimulacionResponse>> listar(Authentication authentication) {
-        return ResponseEntity.ok(simulacionService.listar(authentication.getName()));
+    public ResponseEntity<List<SimulacionResponse>> listar(
+            @RequestParam(required = false) Long idCurso,
+            Authentication authentication) {
+        return ResponseEntity.ok(simulacionService.listar(authentication.getName(), idCurso));
     }
 
     @GetMapping("/{id}")

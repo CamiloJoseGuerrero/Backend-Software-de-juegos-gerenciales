@@ -8,6 +8,8 @@ import com.estratego.application.dto.docente.EstudianteResponse;
 import com.estratego.domain.model.usuario.Estudiante;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.CursoEstudianteRepository;
+import com.estratego.domain.repository.CursoRepository;
 import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EstudianteRepository;
 import com.estratego.domain.repository.UsuarioRepository;
@@ -47,6 +49,8 @@ public class CargaMasivaEstudiantesService {
     private final UsuarioRepository usuarioRepository;
     private final EstudianteRepository estudianteRepository;
     private final DocenteEstudianteRepository docenteEstudianteRepository;
+    private final CursoRepository cursoRepository;
+    private final CursoEstudianteRepository cursoEstudianteRepository;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -56,8 +60,14 @@ public class CargaMasivaEstudiantesService {
 
     @Transactional
     public CargaMasivaResponse procesar(MultipartFile file, String correoDocente) {
+        return procesar(file, correoDocente, null);
+    }
+
+    @Transactional
+    public CargaMasivaResponse procesar(MultipartFile file, String correoDocente, Long idCurso) {
         validateFile(file);
         Long idDocente = resolverDocenteId(correoDocente);
+        validarCursoDelDocente(idCurso, idDocente);
 
         List<CreadoEstudianteResponse> creados = new ArrayList<>();
         List<EstudianteResponse> vinculados = new ArrayList<>();
@@ -114,7 +124,7 @@ public class CargaMasivaEstudiantesService {
                 String genero = generoRaw.isBlank() ? null : generoRaw.toUpperCase(Locale.ROOT);
 
                 try {
-                    Alta alta = registrarOVincular(nombre, correo, identificacion, edad, genero, idDocente);
+                    Alta alta = registrarOVincular(nombre, correo, identificacion, edad, genero, idDocente, idCurso);
                     if (alta.creado() != null) {
                         creados.add(alta.creado());
                         credenciales.add(alta.credencial());
@@ -145,13 +155,15 @@ public class CargaMasivaEstudiantesService {
     @Transactional
     public CreadoEstudianteResponse crearManual(CrearEstudianteRequest request, String correoDocente) {
         Long idDocente = resolverDocenteId(correoDocente);
+        Long idCurso = request.getIdCurso();
+        validarCursoDelDocente(idCurso, idDocente);
 
         String correo = request.getCorreo().trim().toLowerCase(Locale.ROOT);
         String genero = request.getGenero() == null || request.getGenero().isBlank()
                 ? null : request.getGenero().trim().toUpperCase(Locale.ROOT);
 
         Alta alta = registrarOVincular(request.getNombre().trim(), correo,
-                request.getNumeroIdentificacion().trim(), request.getEdad(), genero, idDocente);
+                request.getNumeroIdentificacion().trim(), request.getEdad(), genero, idDocente, idCurso);
 
         if (alta.creado() != null) {
             publicarCredenciales(List.of(alta.credencial()));
@@ -164,7 +176,7 @@ public class CargaMasivaEstudiantesService {
     }
 
     private Alta registrarOVincular(String nombre, String correo, String identificacion,
-                                    Integer edad, String genero, Long idDocente) {
+                                    Integer edad, String genero, Long idDocente, Long idCurso) {
         Optional<Usuario> porCorreo = usuarioRepository.findByCorreo(correo);
         Optional<Usuario> porIdentificacion = usuarioRepository.findByNumeroIdentificacion(identificacion);
 
@@ -183,10 +195,21 @@ public class CargaMasivaEstudiantesService {
             if (existente.getRol() != Rol.ESTUDIANTE) {
                 throw new UsuarioDuplicadoException("El correo pertenece a un usuario que no es estudiante");
             }
-            if (docenteEstudianteRepository.existeVinculo(idDocente, existente.getId())) {
-                throw new UsuarioDuplicadoException("El estudiante ya está en tu lista");
+            boolean yaEnDocente = docenteEstudianteRepository.existeVinculo(idDocente, existente.getId());
+            if (idCurso != null) {
+                if (cursoEstudianteRepository.existeVinculo(idCurso, existente.getId())) {
+                    throw new UsuarioDuplicadoException("El estudiante ya pertenece a este curso");
+                }
+                if (!yaEnDocente) {
+                    docenteEstudianteRepository.vincular(idDocente, existente.getId());
+                }
+                cursoEstudianteRepository.vincular(idCurso, existente.getId());
+            } else {
+                if (yaEnDocente) {
+                    throw new UsuarioDuplicadoException("El estudiante ya está en tu lista");
+                }
+                docenteEstudianteRepository.vincular(idDocente, existente.getId());
             }
-            docenteEstudianteRepository.vincular(idDocente, existente.getId());
             Estudiante datos = estudianteRepository.findById(existente.getId()).orElse(null);
             return new Alta(null, null, new EstudianteResponse(
                     existente.getId(), existente.getNombre(), existente.getCorreo(),
@@ -204,6 +227,9 @@ public class CargaMasivaEstudiantesService {
                 passwordEncoder.encode(passwordPlano), Rol.ESTUDIANTE));
         estudianteRepository.save(new Estudiante(guardado.getId(), null, null, null, edad, genero));
         docenteEstudianteRepository.vincular(idDocente, guardado.getId());
+        if (idCurso != null) {
+            cursoEstudianteRepository.vincular(idCurso, guardado.getId());
+        }
 
         return new Alta(new CreadoEstudianteResponse(
                 guardado.getId(), guardado.getNombre(), guardado.getCorreo(),
@@ -217,6 +243,15 @@ public class CargaMasivaEstudiantesService {
     private void publicarCredenciales(List<EstudiantesCargadosEvent.Credencial> credenciales) {
         if (credenciales.isEmpty()) return;
         eventPublisher.publishEvent(new EstudiantesCargadosEvent(credenciales));
+    }
+
+    private void validarCursoDelDocente(Long idCurso, Long idDocente) {
+        if (idCurso == null) return;
+        var curso = cursoRepository.findById(idCurso)
+                .orElseThrow(() -> new IllegalArgumentException("Curso no encontrado"));
+        if (!idDocente.equals(curso.getIdDocente())) {
+            throw new IllegalArgumentException("El curso no pertenece a este docente");
+        }
     }
 
     private Long resolverDocenteId(String correoDocente) {

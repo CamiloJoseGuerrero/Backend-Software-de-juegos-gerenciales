@@ -10,6 +10,7 @@ import com.estratego.domain.model.integrante.Integrante;
 import com.estratego.domain.model.simulacion.EstadoSimulacion;
 import com.estratego.domain.model.simulacion.Simulacion;
 import com.estratego.domain.repository.CasoRepository;
+import com.estratego.domain.repository.CursoRepository;
 import com.estratego.domain.repository.DecisionCasoRepository;
 import com.estratego.domain.repository.EmpresaRepository;
 import com.estratego.domain.repository.IntegranteRepository;
@@ -34,6 +35,7 @@ public class SimulacionService {
 
     private final SimulacionRepository simulacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final CursoRepository cursoRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CasoRepository casoRepository;
     private final EmpresaRepository empresaRepository;
@@ -49,21 +51,38 @@ public class SimulacionService {
 
         validarFechas(request.getFechaInicio(), request.getFechaFin());
 
+        Long idCurso = request.getIdCurso();
+        if (idCurso != null) {
+            var curso = cursoRepository.findById(idCurso)
+                    .orElseThrow(() -> new IllegalArgumentException("Curso no encontrado"));
+            if (!idCoordinador.equals(curso.getIdDocente())) {
+                throw new IllegalArgumentException("El curso no pertenece a este docente");
+            }
+        }
+
         Simulacion simulacion = new Simulacion(
                 null,
                 idCoordinador,
                 request.getNombre().trim(),
                 request.getFechaInicio(),
                 request.getFechaFin(),
-                EstadoSimulacion.BORRADOR
+                EstadoSimulacion.BORRADOR,
+                idCurso
         );
 
         return toResponse(simulacionRepository.save(simulacion));
     }
 
     public List<SimulacionResponse> listar(String correoCoordinador) {
+        return listar(correoCoordinador, null);
+    }
+
+    public List<SimulacionResponse> listar(String correoCoordinador, Long idCurso) {
         Long idCoordinador = resolverCoordinadorId(correoCoordinador);
-        return simulacionRepository.findByIdUsuarioCoordinador(idCoordinador).stream()
+        List<Simulacion> simulaciones = idCurso != null
+                ? simulacionRepository.findByIdUsuarioCoordinadorAndIdCurso(idCoordinador, idCurso)
+                : simulacionRepository.findByIdUsuarioCoordinador(idCoordinador);
+        return simulaciones.stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -269,7 +288,8 @@ public class SimulacionService {
                 s.getNombre(),
                 s.getFechaInicio(),
                 s.getFechaFin(),
-                s.getEstado()
+                s.getEstado(),
+                s.getIdCurso()
         );
     }
 }

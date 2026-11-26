@@ -30,9 +30,10 @@ public class DocenteController {
     @PostMapping(value = "/carga-masiva", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CargaMasivaResponse> cargarEstudiantes(
             @RequestPart("archivo") MultipartFile archivo,
+            @RequestParam(required = false) Long idCurso,
             Authentication authentication) {
         return ResponseEntity.ok(
-                cargaMasivaEstudiantesService.procesar(archivo, authentication.getName())
+                cargaMasivaEstudiantesService.procesar(archivo, authentication.getName(), idCurso)
         );
     }
 
@@ -47,9 +48,11 @@ public class DocenteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<EstudianteResponse>> listarEstudiantes(Authentication authentication) {
+    public ResponseEntity<List<EstudianteResponse>> listarEstudiantes(
+            @RequestParam(required = false) Long idCurso,
+            Authentication authentication) {
         return ResponseEntity.ok(
-                docenteEstudianteService.listarEstudiantesDelDocente(authentication.getName())
+                docenteEstudianteService.listarEstudiantesDelDocente(authentication.getName(), idCurso)
         );
     }
 

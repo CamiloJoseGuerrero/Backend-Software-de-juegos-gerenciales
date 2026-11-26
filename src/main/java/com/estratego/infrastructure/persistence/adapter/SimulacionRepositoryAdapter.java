@@ -29,6 +29,18 @@ public class SimulacionRepositoryAdapter implements SimulacionRepository {
     }
 
     @Override
+    public List<Simulacion> findByIdUsuarioCoordinadorAndIdCurso(Long idUsuarioCoordinador, Long idCurso) {
+        return jpaRepository.findByIdUsuarioCoordinadorAndIdCurso(idUsuarioCoordinador, idCurso).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public long countByIdCurso(Long idCurso) {
+        return jpaRepository.countByIdCurso(idCurso);
+    }
+
+    @Override
     public List<Simulacion> findByEstado(com.estratego.domain.model.simulacion.EstadoSimulacion estado) {
         return jpaRepository.findByEstado(estado).stream()
                 .map(this::toDomain)
@@ -57,7 +69,8 @@ public class SimulacionRepositoryAdapter implements SimulacionRepository {
                 e.getNombre(),
                 e.getFechaInicio(),
                 e.getFechaFin(),
-                e.getEstado()
+                e.getEstado(),
+                e.getIdCurso()
         );
     }
 
@@ -68,7 +81,8 @@ public class SimulacionRepositoryAdapter implements SimulacionRepository {
                 s.getNombre(),
                 s.getFechaInicio(),
                 s.getFechaFin(),
-                s.getEstado()
+                s.getEstado(),
+                s.getIdCurso()
         );
     }
 }

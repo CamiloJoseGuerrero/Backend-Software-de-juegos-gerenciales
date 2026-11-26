@@ -4,6 +4,8 @@ import com.estratego.application.dto.docente.EstudianteResponse;
 import com.estratego.domain.model.usuario.Estudiante;
 import com.estratego.domain.model.usuario.Rol;
 import com.estratego.domain.model.usuario.Usuario;
+import com.estratego.domain.repository.CursoEstudianteRepository;
+import com.estratego.domain.repository.CursoRepository;
 import com.estratego.domain.repository.DocenteEstudianteRepository;
 import com.estratego.domain.repository.EstudianteRepository;
 import com.estratego.domain.repository.UsuarioRepository;
@@ -20,10 +22,27 @@ public class DocenteEstudianteService {
     private final UsuarioRepository usuarioRepository;
     private final EstudianteRepository estudianteRepository;
     private final DocenteEstudianteRepository docenteEstudianteRepository;
+    private final CursoRepository cursoRepository;
+    private final CursoEstudianteRepository cursoEstudianteRepository;
 
     public List<EstudianteResponse> listarEstudiantesDelDocente(String correoDocente) {
+        return listarEstudiantesDelDocente(correoDocente, null);
+    }
+
+    public List<EstudianteResponse> listarEstudiantesDelDocente(String correoDocente, Long idCurso) {
         Long idDocente = resolverDocenteId(correoDocente);
-        return docenteEstudianteRepository.findIdsEstudiantes(idDocente).stream()
+        List<Long> ids;
+        if (idCurso != null) {
+            var curso = cursoRepository.findById(idCurso)
+                    .orElseThrow(() -> new IllegalArgumentException("Curso no encontrado"));
+            if (!idDocente.equals(curso.getIdDocente())) {
+                throw new IllegalArgumentException("El curso no pertenece a este docente");
+            }
+            ids = cursoEstudianteRepository.findIdsEstudiantes(idCurso);
+        } else {
+            ids = docenteEstudianteRepository.findIdsEstudiantes(idDocente);
+        }
+        return ids.stream()
                 .map(usuarioRepository::findById)
                 .flatMap(Optional::stream)
                 .filter(u -> u.getRol() == Rol.ESTUDIANTE)

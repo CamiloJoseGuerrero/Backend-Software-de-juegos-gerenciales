@@ -35,4 +35,7 @@ public class SimulacionEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", length = 30)
     private EstadoSimulacion estado;
+
+    @Column(name = "id_curso")
+    private Long idCurso;
 }

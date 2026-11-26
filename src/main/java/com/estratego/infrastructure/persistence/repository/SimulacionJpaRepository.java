@@ -11,5 +11,9 @@ public interface SimulacionJpaRepository extends JpaRepository<SimulacionEntity,
 
     List<SimulacionEntity> findByIdUsuarioCoordinador(Long idUsuarioCoordinador);
 
+    List<SimulacionEntity> findByIdUsuarioCoordinadorAndIdCurso(Long idUsuarioCoordinador, Long idCurso);
+
+    long countByIdCurso(Long idCurso);
+
     List<SimulacionEntity> findByEstado(com.estratego.domain.model.simulacion.EstadoSimulacion estado);
 }

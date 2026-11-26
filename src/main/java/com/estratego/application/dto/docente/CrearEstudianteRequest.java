@@ -28,4 +28,12 @@ public class CrearEstudianteRequest {
 
     @Pattern(regexp = "^[MmFf]$", message = "El género debe ser M o F")
     private String genero;
+
+    /** Curso opcional al que se inscribe automáticamente al estudiante. */
+    private Long idCurso;
+
+    public CrearEstudianteRequest(String nombre, String correo, String numeroIdentificacion,
+                                  Integer edad, String genero) {
+        this(nombre, correo, numeroIdentificacion, edad, genero, null);
+    }
 }
