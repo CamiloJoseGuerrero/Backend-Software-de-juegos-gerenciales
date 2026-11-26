@@ -23,4 +23,12 @@ public class MiSimulacionResponse {
     private String nombreEmpresa;
     private Departamento departamento;
     private boolean esLider;
+    private String nombreDocente;
+
+    public MiSimulacionResponse(Long idSimulacion, String nombreSimulacion, LocalDate fechaInicio, LocalDate fechaFin,
+                                EstadoSimulacion estado, Long idEmpresa, String codigoEmpresa, String nombreEmpresa,
+                                Departamento departamento, boolean esLider) {
+        this(idSimulacion, nombreSimulacion, fechaInicio, fechaFin, estado, idEmpresa, codigoEmpresa, nombreEmpresa,
+                departamento, esLider, null);
+    }
 }

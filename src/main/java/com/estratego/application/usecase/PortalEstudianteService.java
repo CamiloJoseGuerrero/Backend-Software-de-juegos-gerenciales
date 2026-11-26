@@ -47,12 +47,16 @@ public class PortalEstudianteService {
 
     public List<MiSimulacionResponse> misSimulaciones(String correo) {
         List<MiSimulacionResponse> resultado = new ArrayList<>();
+        Map<Long, String> nombresDocentes = new java.util.HashMap<>();
         for (Participacion p : participaciones(resolverUsuarioId(correo))) {
+            Long idCoord = p.simulacion().getIdUsuarioCoordinador();
+            String nombreDocente = idCoord == null ? null : nombresDocentes.computeIfAbsent(
+                    idCoord, id -> usuarioRepository.findById(id).map(Usuario::getNombre).orElse(null));
             resultado.add(new MiSimulacionResponse(
                     p.simulacion().getId(), p.simulacion().getNombre(),
                     p.simulacion().getFechaInicio(), p.simulacion().getFechaFin(), p.simulacion().getEstado(),
                     p.empresa().getId(), p.empresa().getCodigoEmpresa(), p.empresa().getNombre(),
-                    p.integrante().getDepartamento(), p.integrante().isEsLider()));
+                    p.integrante().getDepartamento(), p.integrante().isEsLider(), nombreDocente));
         }
         return resultado;
     }
